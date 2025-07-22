@@ -1,0 +1,16 @@
+{
+  "name": "node-red-contrib-nhc2",
+  "version": "1.1.0",
+  "description": "Node-RED nodes for Niko Home Control II via MQTT with device discovery",
+  "dependencies": {
+    "mqtt": "^5.6.6",
+    "fs-extra": "^11.1.1"
+  },
+  "node-red": {
+    "nodes": {
+      "nhc2-config": "nhc2-config.js",
+      "nhc2-input": "nhc2-input.js",
+      "nhc2-output": "nhc2-output.js"
+    }
+  }
+}
