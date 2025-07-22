@@ -1,0 +1,24 @@
+<script type="text/html" data-template-name="nhc2-output">
+  <div class="form-row">
+    <label for="node-input-config">Config</label>
+    <input type="text" id="node-input-config">
+  </div>
+  <div class="form-row">
+    <label for="node-input-deviceUuid">Device UUID</label>
+    <input type="text" id="node-input-deviceUuid">
+  </div>
+</script>
+
+<script type="text/javascript">
+  RED.nodes.registerType('nhc2-output', {
+    category: 'output',
+    defaults: {
+      config: {type:"nhc2-config", required:true},
+      deviceUuid: {value:"", required:true}
+    },
+    inputs: 1,
+    outputs: 0,
+    icon: "bridge.svg",
+    label: function() { return "NHC2 Output"; }
+  });
+</script>

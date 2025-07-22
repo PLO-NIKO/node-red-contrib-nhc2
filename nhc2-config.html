@@ -1,0 +1,59 @@
+<script type="text/html" data-template-name="nhc2-config">
+  <div class="form-row">
+    <label for="node-config-input-host">Host</label>
+    <input type="text" id="node-config-input-host">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-port">Port</label>
+    <input type="text" id="node-config-input-port">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-username">Username</label>
+    <input type="text" id="node-config-input-username">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-password">Password</label>
+    <input type="password" id="node-config-input-password">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-caPath">CA Certificate Path</label>
+    <input type="text" id="node-config-input-caPath">
+  </div>
+</script>
+
+<script type="text/javascript">
+  RED.nodes.registerType('nhc2-config', {
+    category: 'config',
+    defaults: {
+      host: {value:""},
+      port: {value:8884},
+      username: {value:""},
+      password: {value:""},
+      caPath: {value:""}
+    },
+    label: function() {
+      return this.host + ":" + this.port;
+    }
+  });
+</script>
+
+// nhc2-input.html
+<script type="text/html" data-template-name="nhc2-input">
+  <div class="form-row">
+    <label for="node-input-config">Config</label>
+    <input type="text" id="node-input-config">
+  </div>
+</script>
+
+<script type="text/javascript">
+  RED.nodes.registerType('nhc2-input', {
+    category: 'input',
+    defaults: {
+      config: {type:"nhc2-config", required:true}
+    },
+    inputs: 0,
+    outputs: 1,
+    icon: "bridge.svg",
+    label: function() { return "NHC2 Input"; }
+  });
+</script>
