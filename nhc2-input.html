@@ -3,7 +3,7 @@
   <div class="form-row"><label>Device</label><select id="node-input-deviceUuid"></select></div>
 </script>
 <script>
-RED.nodes.registerType('nhc2-input',{category:'input',defaults:{config:{type:'nhc2-config',required:true},deviceUuid:{value:''}},inputs:0,outputs:1,icon:'bridge.svg',
+RED.nodes.registerType('nhc2-input',{category:'NHC2',defaults:{config:{type:'nhc2-config',required:true},deviceUuid:{value:''}},inputs:0,outputs:1,icon:'bridge.svg',
   label:function(){return 'NHC2 In';},
   oneditprepare:function(){
     const me = this;
