@@ -1,24 +1,29 @@
 <script type="text/html" data-template-name="nhc2-output">
-  <div class="form-row">
-    <label for="node-input-config">Config</label>
-    <input type="text" id="node-input-config">
-  </div>
-  <div class="form-row">
-    <label for="node-input-deviceUuid">Device UUID</label>
-    <input type="text" id="node-input-deviceUuid">
-  </div>
+  <div class="form-row"><label>Config</label><select id="node-input-config"></select></div>
+  <div class="form-row"><label>Device</label><select id="node-input-deviceUuid"></select></div>
 </script>
-
-<script type="text/javascript">
-  RED.nodes.registerType('nhc2-output', {
-    category: 'output',
-    defaults: {
-      config: {type:"nhc2-config", required:true},
-      deviceUuid: {value:"", required:true}
-    },
-    inputs: 1,
-    outputs: 0,
-    icon: "bridge.svg",
-    label: function() { return "NHC2 Output"; }
-  });
+<script>
+RED.nodes.registerType('nhc2-output',{
+  category:'output',
+  defaults:{config:{type:'nhc2-config',required:true},deviceUuid:{value:'',required:true}},
+  inputs:1,outputs:0,icon:'bridge.svg',
+  label:function(){return 'NHC2 Out';},
+  oneditprepare:function(){
+    const me = this;
+    function populateDevices(){
+      const cid = $('#node-input-config').val();
+      if(!cid) return;
+      $.getJSON(`/nhc2-config/${cid}/devices`).done(devs=>{
+        const sel = $('#node-input-deviceUuid').empty();
+        Object.values(devs).forEach(d => $('<option>').val(d.Uuid).text(d.Name).appendTo(sel));
+        sel.val(me.deviceUuid);
+      });
+    }
+    // auto populate config select
+    $('#node-input-config').on('change', populateDevices);
+    // initial
+    $('#node-input-config').val(this.config);
+    populateDevices();
+  }
+});
 </script>
