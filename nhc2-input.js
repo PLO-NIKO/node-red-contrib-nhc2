@@ -10,6 +10,9 @@ module.exports = function(RED) {
 
     // track latest brightness value per device
     let lastBrightness = null;
+    // track last payload and timestamp for status display
+    let lastPayload = null;
+    let lastTimestamp = null;
 
     if (cfg && cfg.client) {
       const prefix = cfg.username;
@@ -47,31 +50,39 @@ module.exports = function(RED) {
               if (!node.deviceUuid || dev.Uuid === node.deviceUuid) {
                 const info = cfg.devices[dev.Uuid] || { Name: dev.Uuid };
 
+                function sendOutput(out) {
+                  lastPayload = out;
+                  lastTimestamp = new Date().toLocaleTimeString();
+                  node.send({ topic: info.Name, payload: out, device: info });
+                  // update node status with last payload and time
+                  node.status({ fill: 'green', shape: 'dot', text: `Payload: ${lastPayload} @ ${lastTimestamp}` });
+                }
+
                 if (node.property === 'Brightness') {
                   // always forward brightness and listen for status
                   dev.Properties.forEach(propObj => {
                     if (propObj.hasOwnProperty('Brightness')) {
                       lastBrightness = propObj.Brightness;
                       if (cfg.debug) node.debug(`[Input] Received Brightness ${lastBrightness} for ${dev.Uuid}`);
-                      node.send({ topic: info.Name, payload: lastBrightness, device: info });
+                      sendOutput(lastBrightness);
                     }
                     if (propObj.hasOwnProperty('Status')) {
                       const status = propObj.Status;
                       const brightness = lastBrightness != null ? lastBrightness : 100;
                       const out = (status === 'On' || status === true) ? brightness : 0;
                       if (cfg.debug) node.debug(`[Input] Status ${status} for ${dev.Uuid}, sending payload ${out}`);
-                      node.send({ topic: info.Name, payload: out, device: info });
+                      sendOutput(out);
                     }
                   });
                 } else if (node.property) {
                   // only send when this update contains the chosen property
                   const obj = dev.Properties.find(p => p.hasOwnProperty(node.property));
                   if (!obj) return;
-                  node.send({ topic: info.Name, payload: obj[node.property], device: info });
+                  sendOutput(obj[node.property]);
                 } else {
                   // merge all properties into one object
                   const out = dev.Properties.reduce((acc, p) => Object.assign(acc, p), {});
-                  node.send({ topic: info.Name, payload: out, device: info });
+                  sendOutput(out);
                 }
               }
             });
@@ -83,6 +94,7 @@ module.exports = function(RED) {
         }
       });
 
+      // initial status text
       node.status({ fill: 'green', shape: 'dot', text: 'listening' });
     } else {
       node.status({ fill: 'red', shape: 'ring', text: 'no config' });
