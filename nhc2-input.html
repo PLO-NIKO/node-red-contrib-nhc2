@@ -1,56 +1,58 @@
 <script type="text/html" data-template-name="nhc2-input">
   <div class="form-row"><label>Config</label><select id="node-input-config"></select></div>
   <div class="form-row"><label>Search</label>
-    <input type="text" id="node-input-deviceFilter" placeholder="Type to filter devices…" style="width: 100%">
+    <input type="text" id="node-input-deviceFilter" placeholder="Type to filter devices…" style="width:100%">
   </div>
   <div class="form-row"><label>Device</label><select id="node-input-deviceUuid"></select></div>
   <div class="form-row"><label>Property</label><select id="node-input-property"></select></div>
+  <div class="form-row"><label>Definitions</label>
+    <table id="node-input-propertyTable" style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr>
+          <th style="text-align:left">Property</th>
+          <th style="text-align:left">HasStatus</th>
+          <th style="text-align:left">CanControl</th>
+          <th style="text-align:left">Description</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </script>
 <script>
 RED.nodes.registerType('nhc2-input',{
   category: 'NHC2',
   defaults: {
-    config:     { type: 'nhc2-config', required: true },
-    deviceUuid: { value: '' },
-    property:   { value: '' }
+    config:     { type:'nhc2-config', required:true },
+    deviceUuid: { value:'' },
+    property:   { value:'' }
   },
-  inputs: 0,
-  outputs: 1,
-  icon: 'bridge.svg',
-  label: function() { return 'NHC2 In'; },
-  oneditprepare: function(){
+  inputs:0, outputs:1,
+  icon:'bridge.svg',
+  label: ()=>'NHC2 In',
+  oneditprepare:function(){
     const me = this;
     let devices = {};
 
     function formatLabel(d){
-      const locParam = d.Parameters.find(p=>p.LocationName);
-      const loc = locParam? locParam.LocationName : '';
+      const loc = (d.Parameters.find(p=>p.LocationName)||{}).LocationName||'';
       return `${d.Name} (${d.Model} – ${d.Type} – ${loc})`;
     }
 
     function populateDevices(){
       const cid = $('#node-input-config').val();
-      if (!cid) return;
-      $.getJSON(`/nhc2-config/${cid}/devices`).done(devs => {
-        devices = devs;
-        filterAndRender();
-      });
+      if(!cid) return;
+      $.getJSON(`/nhc2-config/${cid}/devices`)
+       .done(devs=>{ devices=devs; filterAndRender(); });
     }
 
     function filterAndRender(){
       const term = $('#node-input-deviceFilter').val().toLowerCase();
       const sel  = $('#node-input-deviceUuid').empty();
       Object.values(devices)
-        // sort by human‑readable label
-        .sort((a, b) => formatLabel(a).toLowerCase().localeCompare(formatLabel(b).toLowerCase()))
-        // then filter on the search term
-        .filter(d => formatLabel(d).toLowerCase().includes(term))
-        .forEach(d => {
-          $('<option>')
-            .val(d.Uuid)
-            .text(formatLabel(d))
-            .appendTo(sel);
-        });
+        .sort((a,b)=>formatLabel(a).toLowerCase().localeCompare(formatLabel(b).toLowerCase()))
+        .filter(d=>formatLabel(d).toLowerCase().includes(term))
+        .forEach(d=>$('<option>').val(d.Uuid).text(formatLabel(d)).appendTo(sel));
       sel.val(me.deviceUuid);
       populateProperties();
     }
@@ -58,27 +60,37 @@ RED.nodes.registerType('nhc2-input',{
     function populateProperties(){
       const sel = $('#node-input-property').empty();
       const du  = $('#node-input-deviceUuid').val();
-      if (!du) return;
+      const tbody = $('#node-input-propertyTable tbody').empty();
+      if(!du) return;
       const d = devices[du];
-      if (!d || !d.PropertyDefinitions) return;
+      if(!d || !d.PropertyDefinitions) return;
+      // fill dropdown
       $('<option>').val('').text('All').appendTo(sel);
-      d.PropertyDefinitions.forEach(def => {
-        const name = Object.keys(def)[0];
-        const desc = def[name].Description || '';
+      d.PropertyDefinitions.forEach(def=>{
+        const name = Object.keys(def)[0],
+              pd   = def[name],
+              desc = pd.Description||'';
         $('<option>')
           .val(name)
-          .text(desc ? `${name} (${desc})` : name)
+          .text(desc?`${name} (${desc})`:name)
           .appendTo(sel);
+        // fill table row
+        $('<tr>')
+          .append($('<td>').text(name))
+          .append($('<td>').text(pd.HasStatus))
+          .append($('<td>').text(pd.CanControl))
+          .append($('<td>').text(pd.Description))
+          .appendTo(tbody);
       });
       sel.val(me.property);
     }
 
-    // event bindings
-    $('#node-input-config').on('change', populateDevices);
-    $('#node-input-deviceFilter').on('input', filterAndRender);
-    $('#node-input-deviceUuid').on('change', populateProperties);
+    // bindings
+    $('#node-input-config').on('change',populateDevices);
+    $('#node-input-deviceFilter').on('input',filterAndRender);
+    $('#node-input-deviceUuid').on('change',populateProperties);
 
-    // initialize
+    // init
     $('#node-input-config').val(this.config);
     populateDevices();
   }
