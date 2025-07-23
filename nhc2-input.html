@@ -4,6 +4,8 @@
     <input type="text" id="node-input-deviceFilter" placeholder="Type to filter devices…" style="width:100%">
   </div>
   <div class="form-row"><label>Device</label><select id="node-input-deviceUuid"></select></div>
+  <!-- hidden storage for the chosen device name -->
+  <input type="hidden" id="node-input-deviceName">
   <div class="form-row"><label>Property</label><select id="node-input-property"></select></div>
   <div class="form-row"><label>Definitions</label>
     <table id="node-input-propertyTable" style="width:100%;border-collapse:collapse">
@@ -23,58 +25,78 @@
 RED.nodes.registerType('nhc2-input',{
   category: 'NHC2',
   defaults: {
-    config:     { type:'nhc2-config', required:true },
-    deviceUuid: { value:'' },
-    property:   { value:'' }
+    config:      { type:'nhc2-config', required:true },
+    deviceUuid:  { value:'' },
+    deviceName:  { value:'' },    // ← new hidden field
+    property:    { value:'' }
   },
-  inputs:0, outputs:1,
-  icon:'bridge.svg',
-  label: ()=>'NHC2 In',
-  oneditprepare:function(){
+  inputs: 0, outputs: 1,
+  icon: 'bridge.svg',
+  // dynamic label reads the stored deviceName + property (or falls back)
+  label: function() {
+    const name = this.deviceName || 'NHC2 In';
+    const prop = this.property  || 'All';
+    return `${name} [${prop}]`;
+  },
+  oneditprepare: function(){
     const me = this;
     let devices = {};
 
     function formatLabel(d){
-      const loc = (d.Parameters.find(p=>p.LocationName)||{}).LocationName||'';
+      const loc = (d.Parameters.find(p=>p.LocationName)||{}).LocationName || '';
       return `${d.Name} (${d.Model} – ${d.Type} – ${loc})`;
     }
 
     function populateDevices(){
       const cid = $('#node-input-config').val();
-      if(!cid) return;
-      $.getJSON(`/nhc2-config/${cid}/devices`)
-       .done(devs=>{ devices=devs; filterAndRender(); });
+      if (!cid) return;
+      $.getJSON(`/nhc2-config/${cid}/devices`).done(devs => {
+        devices = devs;
+        // cache on the config-node so label() can read it if needed
+        const cfgNode = RED.nodes.node(me.config);
+        if (cfgNode) { cfgNode.devices = devices; }
+        filterAndRender();
+      });
     }
 
     function filterAndRender(){
       const term = $('#node-input-deviceFilter').val().toLowerCase();
       const sel  = $('#node-input-deviceUuid').empty();
       Object.values(devices)
-        .sort((a,b)=>formatLabel(a).toLowerCase().localeCompare(formatLabel(b).toLowerCase()))
-        .filter(d=>formatLabel(d).toLowerCase().includes(term))
-        .forEach(d=>$('<option>').val(d.Uuid).text(formatLabel(d)).appendTo(sel));
+        .sort((a,b) => formatLabel(a).toLowerCase().localeCompare(formatLabel(b).toLowerCase()))
+        .filter(d => formatLabel(d).toLowerCase().includes(term))
+        .forEach(d => {
+          $('<option>').val(d.Uuid).text(formatLabel(d)).appendTo(sel);
+        });
       sel.val(me.deviceUuid);
-      populateProperties();
+      sel.change();  // trigger our change handler
     }
 
+    // whenever device changes, store its Name and rebuild the properties/table
+    $('#node-input-deviceUuid').on('change', function(){
+      const du = $(this).val();
+      const dn = devices[du] ? devices[du].Name : '';
+      me.deviceName = dn;
+      $('#node-input-deviceName').val(dn);
+      populateProperties();
+    });
+
     function populateProperties(){
-      const sel = $('#node-input-property').empty();
-      const du  = $('#node-input-deviceUuid').val();
+      const sel   = $('#node-input-property').empty();
       const tbody = $('#node-input-propertyTable tbody').empty();
-      if(!du) return;
+      const du    = $('#node-input-deviceUuid').val();
+      if (!du) return;
       const d = devices[du];
-      if(!d || !d.PropertyDefinitions) return;
-      // fill dropdown
+      if (!d || !d.PropertyDefinitions) return;
       $('<option>').val('').text('All').appendTo(sel);
-      d.PropertyDefinitions.forEach(def=>{
+      d.PropertyDefinitions.forEach(def => {
         const name = Object.keys(def)[0],
               pd   = def[name],
-              desc = pd.Description||'';
+              desc = pd.Description || '';
         $('<option>')
           .val(name)
-          .text(desc?`${name} (${desc})`:name)
+          .text(desc ? `${name} (${desc})` : name)
           .appendTo(sel);
-        // fill table row
         $('<tr>')
           .append($('<td>').text(name))
           .append($('<td>').text(pd.HasStatus))
@@ -85,13 +107,13 @@ RED.nodes.registerType('nhc2-input',{
       sel.val(me.property);
     }
 
-    // bindings
-    $('#node-input-config').on('change',populateDevices);
-    $('#node-input-deviceFilter').on('input',filterAndRender);
-    $('#node-input-deviceUuid').on('change',populateProperties);
+    // wire up filters & initial load
+    $('#node-input-config').on('change',    populateDevices);
+    $('#node-input-deviceFilter').on('input', filterAndRender);
 
-    // init
+    // restore any saved values, then load
     $('#node-input-config').val(this.config);
+    $('#node-input-deviceName').val(this.deviceName || '');
     populateDevices();
   }
 });
