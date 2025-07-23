@@ -16,12 +16,12 @@ This repository provides custom Node-RED nodes to integrate with the Niko Home C
 
 ## Installation
 
-1. Copy the `nhc2-input.html`, `nhc2-input.js`, `nhc2-output.html`, and `nhc2-output.js` files into a new Node-RED node module folder, e.g., `node-red-contrib-nhc2`.
+1. Copy the `nhc2-config.html`, `nhc2-config.js`, `nhc2-input.html`, `nhc2-input.js`, `nhc2-output.html`, and `nhc2-output.js` files into a new Node-RED node module folder, e.g., `node-red-contrib-nhc2`.
 2. Add a `package.json` with dependencies on `node-red`.
 3. Run `npm install` in the module directory.
 4. Restart Node-RED.
 
-Alternatively, you can install via npm if published:
+Alternatively, install via npm if published:
 
 ```bash
 npm install node-red-contrib-nhc2
@@ -37,6 +37,13 @@ npm install node-red-contrib-nhc2
 
 ## Nodes
 
+### NHC2 Config
+
+- **Purpose**: Manage MQTT connection, fetch device list, and refresh devices.
+- **Endpoints**:
+  - `GET /nhc2-config/:id/devices` - return cached devices list.
+  - `POST /nhc2-config/:id/refresh` - trigger a devices.list request.
+
 ### NHC2 Input
 
 - **Purpose**: Subscribe to device status events.
@@ -45,7 +52,11 @@ npm install node-red-contrib-nhc2
   - Search and select a device by name (sorted alphabetically).
   - Choose a specific property or `All` to receive full payloads.
   - View a table of `PropertyDefinitions` (HasStatus, CanControl, Description).
+  - **Brightness Handling**: On startup the node loads the current brightness from the latest `devices.list`. When `Brightness` is selected:
+    - Any incoming brightness update is forwarded immediately.
+    - The node listens for `Status` changes—sending the latest brightness (or `100` if unknown) when the device turns **On**, and `0` when it turns **Off**.
   - Node label displays `Device Name [Property]`.
+  - Debug logging and status display of last payload and timestamp.
 
 ### NHC2 Output
 
@@ -64,4 +75,3 @@ Contributions, issues, and feature requests are welcome! Please open an issue or
 ## License
 
 MIT © Peter Løbner - Niko
-
