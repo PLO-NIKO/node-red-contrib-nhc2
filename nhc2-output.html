@@ -1,5 +1,8 @@
 <script type="text/html" data-template-name="nhc2-output">
   <div class="form-row"><label>Config</label><select id="node-input-config"></select></div>
+  <div class="form-row"><label>Search</label>
+    <input type="text" id="node-input-deviceFilter" placeholder="Type to filter devices…" style="width: 100%">
+  </div>
   <div class="form-row"><label>Device</label><select id="node-input-deviceUuid"></select></div>
   <div class="form-row"><label>Property</label><select id="node-input-property"></select></div>
 </script>
@@ -9,7 +12,7 @@ RED.nodes.registerType('nhc2-output',{
   defaults: {
     config:     { type: 'nhc2-config', required: true },
     deviceUuid: { value: '', required: true },
-    property:   { value: '' }   // ← new
+    property:   { value: '' }
   },
   inputs: 1,
   outputs: 0,
@@ -19,21 +22,34 @@ RED.nodes.registerType('nhc2-output',{
     const me = this;
     let devices = {};
 
+    function formatLabel(d){
+      const locParam = d.Parameters.find(p=>p.LocationName);
+      const loc = locParam? locParam.LocationName : '';
+      return `${d.Name} (${d.Model} – ${d.Type} – ${loc})`;
+    }
+
     function populateDevices(){
       const cid = $('#node-input-config').val();
       if (!cid) return;
       $.getJSON(`/nhc2-config/${cid}/devices`).done(devs => {
         devices = devs;
-        const sel = $('#node-input-deviceUuid').empty();
-        Object.values(devs).forEach(d => {
-          const locParam = d.Parameters.find(p=>p.LocationName);
-          const loc = locParam? locParam.LocationName : '';
-          const label = `${d.Name} (${d.Model} – ${d.Type} – ${loc})`;
-          $('<option>').val(d.Uuid).text(label).appendTo(sel);
-        });
-        sel.val(me.deviceUuid);
-        populateProperties();
+        filterAndRender();
       });
+    }
+
+    function filterAndRender(){
+      const term = $('#node-input-deviceFilter').val().toLowerCase();
+      const sel  = $('#node-input-deviceUuid').empty();
+      Object.values(devices)
+        .filter(d => formatLabel(d).toLowerCase().includes(term))
+        .forEach(d => {
+          $('<option>')
+            .val(d.Uuid)
+            .text(formatLabel(d))
+            .appendTo(sel);
+        });
+      sel.val(me.deviceUuid);
+      populateProperties();
     }
 
     function populateProperties(){
@@ -54,9 +70,12 @@ RED.nodes.registerType('nhc2-output',{
       sel.val(me.property);
     }
 
+    // bindings
     $('#node-input-config').on('change', populateDevices);
+    $('#node-input-deviceFilter').on('input', filterAndRender);
     $('#node-input-deviceUuid').on('change', populateProperties);
 
+    // init
     $('#node-input-config').val(this.config);
     populateDevices();
   }
