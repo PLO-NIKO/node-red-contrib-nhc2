@@ -1,27 +1,62 @@
 <script type="text/html" data-template-name="nhc2-output">
   <div class="form-row"><label>Config</label><select id="node-input-config"></select></div>
   <div class="form-row"><label>Device</label><select id="node-input-deviceUuid"></select></div>
+  <div class="form-row"><label>Property</label><select id="node-input-property"></select></div>
 </script>
 <script>
 RED.nodes.registerType('nhc2-output',{
-  category:'NHC2',
-  defaults:{config:{type:'nhc2-config',required:true},deviceUuid:{value:'',required:true}},
-  inputs:1,outputs:0,icon:'bridge.svg',
-  label:function(){return 'NHC2 Out';},
-  oneditprepare:function(){
+  category: 'NHC2',
+  defaults: {
+    config:     { type: 'nhc2-config', required: true },
+    deviceUuid: { value: '', required: true },
+    property:   { value: '' }   // ← new
+  },
+  inputs: 1,
+  outputs: 0,
+  icon: 'bridge.svg',
+  label: function() { return 'NHC2 Out'; },
+  oneditprepare: function(){
     const me = this;
+    let devices = {};
+
     function populateDevices(){
       const cid = $('#node-input-config').val();
-      if(!cid) return;
-      $.getJSON(`/nhc2-config/${cid}/devices`).done(devs=>{
+      if (!cid) return;
+      $.getJSON(`/nhc2-config/${cid}/devices`).done(devs => {
+        devices = devs;
         const sel = $('#node-input-deviceUuid').empty();
-        Object.values(devs).forEach(d => $('<option>').val(d.Uuid).text(d.Name).appendTo(sel));
+        Object.values(devs).forEach(d => {
+          const locParam = d.Parameters.find(p=>p.LocationName);
+          const loc = locParam? locParam.LocationName : '';
+          const label = `${d.Name} (${d.Model} – ${d.Type} – ${loc})`;
+          $('<option>').val(d.Uuid).text(label).appendTo(sel);
+        });
         sel.val(me.deviceUuid);
+        populateProperties();
       });
     }
-    // auto populate config select
+
+    function populateProperties(){
+      const sel = $('#node-input-property').empty();
+      const du  = $('#node-input-deviceUuid').val();
+      if (!du) return;
+      const d = devices[du];
+      if (!d || !d.PropertyDefinitions) return;
+      $('<option>').val('').text('All').appendTo(sel);
+      d.PropertyDefinitions.forEach(def => {
+        const name = Object.keys(def)[0];
+        const desc = def[name].Description || '';
+        $('<option>')
+          .val(name)
+          .text(desc ? `${name} (${desc})` : name)
+          .appendTo(sel);
+      });
+      sel.val(me.property);
+    }
+
     $('#node-input-config').on('change', populateDevices);
-    // initial
+    $('#node-input-deviceUuid').on('change', populateProperties);
+
     $('#node-input-config').val(this.config);
     populateDevices();
   }
