@@ -41,6 +41,7 @@ RED.nodes.registerType('nhc2-output',{
       const term = $('#node-input-deviceFilter').val().toLowerCase();
       const sel  = $('#node-input-deviceUuid').empty();
       Object.values(devices)
+        .sort((a, b) => formatLabel(a).toLowerCase().localeCompare(formatLabel(b).toLowerCase()))
         .filter(d => formatLabel(d).toLowerCase().includes(term))
         .forEach(d => {
           $('<option>')

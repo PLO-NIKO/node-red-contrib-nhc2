@@ -41,6 +41,9 @@ RED.nodes.registerType('nhc2-input',{
       const term = $('#node-input-deviceFilter').val().toLowerCase();
       const sel  = $('#node-input-deviceUuid').empty();
       Object.values(devices)
+        // sort by human‑readable label
+        .sort((a, b) => formatLabel(a).toLowerCase().localeCompare(formatLabel(b).toLowerCase()))
+        // then filter on the search term
         .filter(d => formatLabel(d).toLowerCase().includes(term))
         .forEach(d => {
           $('<option>')
