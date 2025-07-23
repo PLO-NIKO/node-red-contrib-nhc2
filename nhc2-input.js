@@ -8,6 +8,9 @@ module.exports = function(RED) {
     node.deviceUuid = config.deviceUuid;
     node.property   = config.property;
 
+    // track latest brightness value
+    let lastBrightness = null;
+
     if (cfg && cfg.client) {
       const prefix = cfg.username;
       cfg.client.subscribe(`${prefix}/control/devices/evt`);
@@ -20,23 +23,33 @@ module.exports = function(RED) {
               // filter by selected device UUID (or allow all if none selected)
               if (!node.deviceUuid || dev.Uuid === node.deviceUuid) {
                 const info = cfg.devices[dev.Uuid] || { Name: dev.Uuid };
-                let out;
 
-                if (node.property) {
+                if (node.property === 'Brightness') {
+                  // for brightness mode, listen to both Brightness and Status updates
+                  dev.Properties.forEach(propObj => {
+                    if (propObj.hasOwnProperty('Brightness')) {
+                      // update and forward brightness
+                      lastBrightness = propObj.Brightness;
+                      node.send({ topic: info.Name, payload: lastBrightness, device: info });
+                    }
+                    if (propObj.hasOwnProperty('Status')) {
+                      // on status change, send last brightness (or default 100), or 0
+                      const status = propObj.Status;
+                      const brightness = lastBrightness != null ? lastBrightness : 100;
+                      const out = (status === 'On' || status === true) ? brightness : 0;
+                      node.send({ topic: info.Name, payload: out, device: info });
+                    }
+                  });
+                } else if (node.property) {
                   // only send when this update contains the chosen property
                   const obj = dev.Properties.find(p => p.hasOwnProperty(node.property));
                   if (!obj) return;          // skip if property not in this update
-                  out = obj[node.property];
+                  node.send({ topic: info.Name, payload: obj[node.property], device: info });
                 } else {
                   // merge all properties into one object
-                  out = dev.Properties.reduce((acc, p) => Object.assign(acc, p), {});
+                  const out = dev.Properties.reduce((acc, p) => Object.assign(acc, p), {});
+                  node.send({ topic: info.Name, payload: out, device: info });
                 }
-
-                node.send({
-                  topic:   info.Name,
-                  payload: out,
-                  device:  info
-                });
               }
             });
           }
