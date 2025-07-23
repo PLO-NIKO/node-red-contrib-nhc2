@@ -26,7 +26,7 @@ RED.nodes.registerType('nhc2-input',{
   category: 'NHC2',
   defaults: {
     config:      { type:'nhc2-config', required:true },
-    deviceUuid:  { value:'' },
+    deviceUuid:  { value:'' , required:true},
     deviceName:  { value:'' },    // ← new hidden field
     property:    { value:'' }
   },
