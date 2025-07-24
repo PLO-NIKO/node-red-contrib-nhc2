@@ -6,7 +6,13 @@
     "node-red",
     "nhc2",
     "niko",
-    "home-automation"
+    "home-automation",
+    "hobbyapi",
+    "mqtt",
+    "hobby-api",
+    "nhc",
+    "Niko Home Control II",
+    "Niko Home Control 2"
   ],
   "node-red": {
     "nodes": {
