@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.X] - 2025-07-25
+- 🟦 **Improved:**
+    - Added ms to timestamps
+
 ## [1.12.5] - 2025-07-25
 
 ### Enhancements

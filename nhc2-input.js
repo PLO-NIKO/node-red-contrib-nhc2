@@ -52,8 +52,14 @@ module.exports = function(RED) {
 
                 function sendOutput(out) {
                   lastPayload = out;
-                  lastTimestamp = new Date().toLocaleTimeString();
-                  node.send({ topic: info.Name, payload: out, device: info });
+                  const lastTimestamp = new Date().toLocaleTimeString('en-GB', {
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    fractionalSecondDigits: 3
+                  }); 
+                 node.send({ topic: info.Name, payload: out, device: info });
                   // update node status with last payload and time
                   node.status({ fill: 'green', shape: 'dot', text: `Payload: ${lastPayload} @ ${lastTimestamp}` });
                 }

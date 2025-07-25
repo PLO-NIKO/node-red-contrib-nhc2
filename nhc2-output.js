@@ -13,10 +13,10 @@ module.exports = function (RED) {
       return now.toLocaleTimeString('en-GB'); // e.g., "14:23:07"
     }
 
-    function clearAndScheduleGreenStatus(timeStr) {
+    function clearAndScheduleGreenStatus(timeStr, payloadStr) {
       if (statusTimeout) clearTimeout(statusTimeout);
       statusTimeout = setTimeout(() => {
-        node.status({ fill: 'green', shape: 'dot', text: `last OK at ${timeStr}` });
+        node.status({ fill: 'green', shape: 'dot', text: `last: ${payloadStr} at ${timeStr}` });
       }, 5000);
     }
 
@@ -50,12 +50,17 @@ module.exports = function (RED) {
         };
 
         const payloadStr = JSON.stringify(props);
-        const timeStr = formatTime();
-
+        const timeStr = new Date().toLocaleTimeString('en-GB', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          fractionalSecondDigits: 3
+        }); 
         cfg.client.publish(`${prefix}/control/devices/cmd`, JSON.stringify(cmd));
 
         node.status({ fill: 'blue', shape: 'dot', text: `sent: ${payloadStr} at ${timeStr}` });
-        clearAndScheduleGreenStatus(timeStr);
+        clearAndScheduleGreenStatus(timeStr, payloadStr);
       });
     } else {
       node.status({ fill: 'red', shape: 'ring', text: 'no config' });
