@@ -17,12 +17,23 @@
   "node-red": {
     "nodes": {
       "nhc2-config": "nhc2-config.js",
-      "nhc2-input":  "nhc2-input.js",
+      "nhc2-input": "nhc2-input.js",
       "nhc2-output": "nhc2-output.js"
     }
   },
   "dependencies": {
     "mqtt": "^4.2.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "node-red-version": ">=3.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PLO-NIKO/node-red-contrib-nhc2.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PLO-NIKO/node-red-contrib-nhc2/issues"
   },
   "author": "Peter Løbner - Niko",
   "license": "MIT"

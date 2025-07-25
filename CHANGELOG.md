@@ -20,6 +20,7 @@
 ### Notes
 
 - The JSON payload is stringified for status display. Consider truncating long payloads in future versions for compact UI display.
+- Added Usage examples
 
 ## [1.12.4] - 2025-07-24
 

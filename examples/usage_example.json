@@ -1,0 +1,280 @@
+[
+    {
+        "id": "f6f2187d.f17ca8",
+        "type": "tab",
+        "label": "NHC2",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "d102b1c83c084afd",
+        "type": "nhc2-input",
+        "z": "f6f2187d.f17ca8",
+        "config": "07bcb43252086649",
+        "deviceUuid": "51b5c15f-d01e-4437-ac19-76ff694edd7d",
+        "deviceName": "TV",
+        "property": "Status",
+        "x": 340,
+        "y": 240,
+        "wires": [
+            [
+                "2415a4db9a04d125"
+            ]
+        ]
+    },
+    {
+        "id": "bb213f21151a3046",
+        "type": "nhc2-output",
+        "z": "f6f2187d.f17ca8",
+        "config": "07bcb43252086649",
+        "deviceUuid": "51b5c15f-d01e-4437-ac19-76ff694edd7d",
+        "deviceName": "TV",
+        "property": "",
+        "x": 980,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "a466bb189ac75e84",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"Status\":\"Off\"}",
+        "payloadType": "json",
+        "x": 760,
+        "y": 540,
+        "wires": [
+            [
+                "bb213f21151a3046"
+            ]
+        ]
+    },
+    {
+        "id": "114b6980a1314499",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"Status\":\"On\"}",
+        "payloadType": "json",
+        "x": 760,
+        "y": 580,
+        "wires": [
+            [
+                "bb213f21151a3046"
+            ]
+        ]
+    },
+    {
+        "id": "84803d62985f2ae5",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"Brightness\":\"15\"}",
+        "payloadType": "json",
+        "x": 750,
+        "y": 660,
+        "wires": [
+            [
+                "bb213f21151a3046"
+            ]
+        ]
+    },
+    {
+        "id": "f9b7d444e77707ff",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"Brightness\":\"100\"}",
+        "payloadType": "json",
+        "x": 750,
+        "y": 700,
+        "wires": [
+            [
+                "bb213f21151a3046"
+            ]
+        ]
+    },
+    {
+        "id": "99937ab018d0e29d",
+        "type": "nhc2-input",
+        "z": "f6f2187d.f17ca8",
+        "config": "07bcb43252086649",
+        "deviceUuid": "51b5c15f-d01e-4437-ac19-76ff694edd7d",
+        "deviceName": "TV",
+        "property": "Brightness",
+        "x": 320,
+        "y": 300,
+        "wires": [
+            [
+                "2415a4db9a04d125"
+            ]
+        ]
+    },
+    {
+        "id": "230cb91ba7dcf9d9",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "On",
+        "payloadType": "str",
+        "x": 730,
+        "y": 360,
+        "wires": [
+            [
+                "c805faba6dfd2a1b"
+            ]
+        ]
+    },
+    {
+        "id": "a92e4aa57379a2aa",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "Off",
+        "payloadType": "str",
+        "x": 730,
+        "y": 420,
+        "wires": [
+            [
+                "c805faba6dfd2a1b"
+            ]
+        ]
+    },
+    {
+        "id": "c11e8be15500fd85",
+        "type": "nhc2-input",
+        "z": "f6f2187d.f17ca8",
+        "config": "07bcb43252086649",
+        "deviceUuid": "51b5c15f-d01e-4437-ac19-76ff694edd7d",
+        "deviceName": "TV",
+        "property": "",
+        "x": 330,
+        "y": 180,
+        "wires": [
+            [
+                "2415a4db9a04d125"
+            ]
+        ]
+    },
+    {
+        "id": "c805faba6dfd2a1b",
+        "type": "nhc2-output",
+        "z": "f6f2187d.f17ca8",
+        "config": "07bcb43252086649",
+        "deviceUuid": "51b5c15f-d01e-4437-ac19-76ff694edd7d",
+        "deviceName": "TV",
+        "property": "Status",
+        "x": 990,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "2415a4db9a04d125",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 580,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "07bcb43252086649",
+        "type": "nhc2-config",
+        "host": "192.168.0.202",
+        "port": "8884",
+        "username": "hobby",
+        "password": "password",
+        "debug": true
+    }
+]
