@@ -1,8 +1,9 @@
 # Changelog
 
-## [1.14.X] - 2025-07-25
+## [1.14.25] - 2025-07-25
 - 🟦 **Improved:**
-    - Added auto discovery of the Controller by hostname
+    - Added auto discovery of the Controller by MAC (takes a bit longer to connect due to this)
+    - Can still use IP-address as well, if auto discovery does not work
 
 
 ## [1.13.X] - 2025-07-25
