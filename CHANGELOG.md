@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.14.X] - 2025-07-25
+- 🟦 **Improved:**
+    - Added auto discovery of the Controller by hostname
+
+
 ## [1.13.X] - 2025-07-25
 - 🟦 **Improved:**
     - Added ms to timestamps

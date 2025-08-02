@@ -2,109 +2,130 @@ module.exports = function(RED) {
   function NHC2InputNode(config) {
     RED.nodes.createNode(this, config);
     const node = this;
-    const cfg  = RED.nodes.getNode(config.config);
-
-    // persisted config values
     node.deviceUuid = config.deviceUuid;
     node.property   = config.property;
 
-    // track latest brightness value per device
-    let lastBrightness = null;
-    // track last payload and timestamp for status display
-    let lastPayload = null;
-    let lastTimestamp = null;
+    let waitInterval = null;
+    let cfgNode = null;
 
-    if (cfg && cfg.client) {
-      const prefix = cfg.username;
-      // subscribe to events and initial device list responses
-      cfg.client.subscribe(`${prefix}/control/devices/evt`);
-      cfg.client.subscribe(`${prefix}/control/devices/rsp`);
-
-      cfg.client.on('message', (topic, message) => {
-        if (cfg.debug) {
-          node.debug(`[Input] MQTT message on topic ${topic}: ${message.toString()}`);
+    // Initialize or re-check configuration
+    function init() {
+      cfgNode = RED.nodes.getNode(config.config);
+      if (!cfgNode) {
+        node.status({ fill: 'yellow', shape: 'ring', text: 'waiting for config' });
+      } else if (!cfgNode.client) {
+        node.status({ fill: 'yellow', shape: 'ring', text: 'waiting for client' });
+      } else {
+        setupSharedListener();
+        if (waitInterval) {
+          clearInterval(waitInterval);
+          waitInterval = null;
         }
-        try {
-          const payload = JSON.parse(message.toString());
-
-          // initial list contains starting brightness
-          if (payload.Method === 'devices.list') {
-            if (cfg.debug) node.debug('[Input] Handling devices.list');
-            const devices = payload.Params[0].Devices || [];
-            devices.forEach(dev => {
-              if (dev.Uuid === node.deviceUuid && node.property === 'Brightness') {
-                dev.Properties.forEach(p => {
-                  if (p.hasOwnProperty('Brightness')) {
-                    lastBrightness = p.Brightness;
-                    if (cfg.debug) node.debug(`[Input] Init brightness for ${dev.Uuid}: ${lastBrightness}`);
-                  }
-                });
-              }
-            });
-          }
-
-          // status updates (evt) for brightness/status
-          if (payload.Method === 'devices.status') {
-            if (cfg.debug) node.debug('[Input] Handling devices.status');
-            payload.Params[0].Devices.forEach(dev => {
-              if (!node.deviceUuid || dev.Uuid === node.deviceUuid) {
-                const info = cfg.devices[dev.Uuid] || { Name: dev.Uuid };
-
-                function sendOutput(out) {
-                  lastPayload = out;
-                  const lastTimestamp = new Date().toLocaleTimeString('en-GB', {
-                    hour12: false,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    fractionalSecondDigits: 3
-                  }); 
-                 node.send({ topic: info.Name, payload: out, device: info });
-                  // update node status with last payload and time
-                  node.status({ fill: 'green', shape: 'dot', text: `Payload: ${lastPayload} @ ${lastTimestamp}` });
-                }
-
-                if (node.property === 'Brightness') {
-                  // always forward brightness and listen for status
-                  dev.Properties.forEach(propObj => {
-                    if (propObj.hasOwnProperty('Brightness')) {
-                      lastBrightness = propObj.Brightness;
-                      if (cfg.debug) node.debug(`[Input] Received Brightness ${lastBrightness} for ${dev.Uuid}`);
-                      sendOutput(lastBrightness);
-                    }
-                    if (propObj.hasOwnProperty('Status')) {
-                      const status = propObj.Status;
-                      const brightness = lastBrightness != null ? lastBrightness : 100;
-                      const out = (status === 'On' || status === true) ? brightness : 0;
-                      if (cfg.debug) node.debug(`[Input] Status ${status} for ${dev.Uuid}, sending payload ${out}`);
-                      sendOutput(out);
-                    }
-                  });
-                } else if (node.property) {
-                  // only send when this update contains the chosen property
-                  const obj = dev.Properties.find(p => p.hasOwnProperty(node.property));
-                  if (!obj) return;
-                  sendOutput(obj[node.property]);
-                } else {
-                  // merge all properties into one object
-                  const out = dev.Properties.reduce((acc, p) => Object.assign(acc, p), {});
-                  sendOutput(out);
-                }
-              }
-            });
-          }
-        } catch (err) {
-          if (cfg.debug) {
-            node.error('[Input] parse error: ' + err);
-          }
-        }
-      });
-
-      // initial status text
-      node.status({ fill: 'green', shape: 'dot', text: 'listening' });
-    } else {
-      node.status({ fill: 'red', shape: 'ring', text: 'no config' });
+      }
     }
+
+    // Register node and shared handler on the config node
+    function setupSharedListener() {
+      // Track all input instances on this config node
+      cfgNode._nhc2Listeners = cfgNode._nhc2Listeners || [];
+      if (!cfgNode._nhc2Listeners.includes(node)) {
+        cfgNode._nhc2Listeners.push(node);
+      }
+
+      // If shared handler not yet registered, do so now
+      if (!cfgNode._nhc2HandlerRegistered) {
+        const prefix = cfgNode.username;
+        cfgNode.client.subscribe(`${prefix}/control/devices/evt`);
+        cfgNode.client.subscribe(`${prefix}/control/devices/rsp`);
+
+        cfgNode.client.on('message', (topic, message) => {
+          let payload;
+          try { payload = JSON.parse(message.toString()); }
+          catch (err) { if (cfgNode.debug) RED.log.error('[NHC2 Input] JSON parse error: ' + err); return; }
+
+          const method = payload.Method;
+          const devices = payload.Params?.[0]?.Devices || [];
+
+          // Dispatch to each registered node
+          cfgNode._nhc2Listeners.forEach(n => {
+            devices.forEach(dev => {
+              if (!n.deviceUuid || dev.Uuid === n.deviceUuid) {
+                handleDevicePayload(n, dev, method);
+              }
+            });
+          });
+        });
+
+        cfgNode._nhc2HandlerRegistered = true;
+      }
+
+      // Indicate listening state on this node
+      node.status({ fill: 'green', shape: 'dot', text: 'listening' });
+      node.log('NHC2 Input: listening for events');
+    }
+
+    // Process a single device payload for a node instance
+    function handleDevicePayload(n, dev, method) {
+      const info = cfgNode.devices[dev.Uuid] || { Name: dev.Uuid };
+      let lastB = n.context().get('lastBrightness') || null;
+
+      // Initialize brightness from device list
+      if (method === 'devices.list') {
+        dev.Properties.forEach(p => {
+          if (p.hasOwnProperty('Brightness')) lastB = p.Brightness;
+        });
+        n.context().set('lastBrightness', lastB);
+        return;
+      }
+
+      // Helper to send output
+      function send(out) {
+        const timestamp = new Date().toLocaleTimeString('en-GB', {
+          hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3
+        });
+        n.send({ topic: info.Name, payload: out, device: info });
+        n.status({ fill: 'green', shape: 'dot', text: `${out} @ ${timestamp}` });
+      }
+
+      // If listening for Brightness, send on both brightness and status changes
+      if (n.property === 'Brightness') {
+        dev.Properties.forEach(p => {
+          if (p.hasOwnProperty('Brightness')) {
+            lastB = p.Brightness;
+            send(lastB);
+          }
+          if (p.hasOwnProperty('Status')) {
+            const out = (p.Status === 'On' || p.Status === true) ? lastB : 0;
+            send(out);
+          }
+        });
+        n.context().set('lastBrightness', lastB);
+      }
+      // If listening for a specific property
+      else if (n.property) {
+        dev.Properties.forEach(p => {
+          if (p.hasOwnProperty(n.property)) send(p[n.property]);
+        });
+      }
+      // If no property selected, merge and send all
+      else {
+        const merged = dev.Properties.reduce((acc, p) => Object.assign(acc, p), {});
+        send(merged);
+      }
+    }
+
+    init();
+    // Continue polling until setup
+    if (!waitInterval) {
+      waitInterval = setInterval(init, 1000);
+    }
+
+    node.on('close', () => {
+      if (waitInterval) clearInterval(waitInterval);
+      if (cfgNode && cfgNode._nhc2Listeners) {
+        cfgNode._nhc2Listeners = cfgNode._nhc2Listeners.filter(n => n !== node);
+      }
+    });
   }
 
   RED.nodes.registerType('nhc2-input', NHC2InputNode);
