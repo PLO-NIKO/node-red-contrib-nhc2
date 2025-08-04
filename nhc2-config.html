@@ -13,7 +13,7 @@
   </div>
   <div class="form-row" id="port-row">
     <label for="node-config-input-port"><i class="fa fa-plug"></i> Port</label>
-    <input type="number" id="node-config-input-port" placeholder="e.g. 1883" />
+    <input type="number" id="node-config-input-port" placeholder="e.g. 8884" />
   </div>
   <div class="form-row" id="username-row">
     <label for="node-config-input-username"><i class="fa fa-user"></i> Username</label>
@@ -32,9 +32,8 @@
     <input type="checkbox" id="node-config-input-watchdog" />
   </div>
   <div class="form-row">
-    <label for="node-config-input-use-secrets"><i class="fa fa-lock"></i> Use Secrets</label>
-    <input type="checkbox" id="node-config-input-use-secrets"
-           title="Use secrets from secure storage" />
+    <label for="node-config-input-use_secrets"><i class="fa fa-lock"></i> Use Secrets</label>
+    <input type="checkbox" id="node-config-input-use_secrets" title="Use secrets from secure storage" />
   </div>
   <div class="form-row">
     <button type="button" id="node-config-refresh" class="primary">Refresh Devices</button>
@@ -45,67 +44,133 @@
 RED.nodes.registerType('nhc2-config',{
     category: 'config',
     defaults: {
-        name:        {value:""},
-        autodiscover:{value:false},
-        mac:         {value:""},
-        host:        {value:""},
-        port:        {value:""},
-        username:    {value:""},
-        password:    {value:""},
-        debug:       {value:false},
-        watchdog:    {value:false},
-        use_secrets: {value:false}
+        name:         {value:""},
+        autodiscover: {value:false},
+        mac:          {value:""},
+        host:         {value:""},
+        port:         {value:""},
+        username:     {value:""},
+        password:     {value:""},
+        debug:        {value:false},
+        watchdog:     {value:false},
+        use_secrets:  {value:false}
     },
     label: function() {
-        return this.name||"nhc2-config";
+        return this.name || "nhc2-config";
     },
     oneditprepare: function() {
-        var macRow      = $("#mac-select-row"),
-            hostRow     = $("#host-row"),
-            portRow     = $("#port-row"),
-            usernameRow = $("#username-row"),
-            passwordRow = $("#password-row"),
-            autodisc    = $("#node-config-input-autodiscover"),
-            useSecrets  = $("#node-config-input-use-secrets");
+        var node        = this;
+        var autodisc    = $("#node-config-input-autodiscover");
+        var macRow      = $("#mac-select-row");
+        var macSelect   = $("#node-config-input-mac");
+        var hostRow     = $("#host-row");
+        var portRow     = $("#port-row");
+        var usernameRow = $("#username-row");
+        var passwordRow = $("#password-row");
+        var hostInput   = $("#node-config-input-host");
+        var portInput   = $("#node-config-input-port");
+        var userInput   = $("#node-config-input-username");
+        var passInput   = $("#node-config-input-password");
+        var debugCheck  = $("#node-config-input-debug");
+        var wdCheck     = $("#node-config-input-watchdog");
+        var useSecrets  = $("#node-config-input-use_secrets");
+        var refreshBtn  = $("#node-config-refresh");
 
-        function toggleFields() {
+        // normalize adminRoot
+        var rawRoot  = RED.settings.httpAdminRoot;
+        var p        = window.location.pathname;
+        var fallback = p.substring(0, p.lastIndexOf('/')) + '/';
+        var adminRoot = (rawRoot && rawRoot !== '/')
+            ? (rawRoot.charAt(rawRoot.length-1) === '/' ? rawRoot : rawRoot + '/')
+            : fallback;
+
+        // initialize fields from saved node
+        autodisc.prop('checked', node.autodiscover);
+        macSelect.val(node.mac);
+        hostInput.val(node.host);
+        portInput.val(node.port);
+        userInput.val(node.username);
+        passInput.val(node.password);
+        debugCheck.prop('checked', node.debug);
+        wdCheck.prop('checked', node.watchdog);
+        useSecrets.prop('checked', node.use_secrets);
+
+        // show/hide host/port/user/pass when Use Secrets
+        function toggleSecrets() {
             if (useSecrets.is(':checked')) {
-                if (!autodisc.is(':checked')) {
-                    window.alert('“Use Secrets” works only when Auto-Discover is enabled.');
-                    useSecrets.prop('checked',false);
-                    return;
-                }
                 hostRow.hide();
                 portRow.hide();
                 usernameRow.hide();
                 passwordRow.hide();
-                macRow.show();
             } else {
+                // host depends on autodiscover
+                if (autodisc.is(':checked')) {
+                    hostRow.hide();
+                } else {
+                    hostRow.show();
+                }
                 portRow.show();
                 usernameRow.show();
                 passwordRow.show();
-                if (autodisc.is(':checked')) {
-                    macRow.show();
-                    hostRow.hide();
-                } else {
-                    macRow.hide();
-                    hostRow.show();
-                }
             }
         }
 
-        autodisc.on('change', toggleFields);
-        useSecrets.on('change', toggleFields);
-
-        // initial visibility
-        if (this.autodiscover) {
-            macRow.show();  hostRow.hide();
-        } else {
-            macRow.hide();  hostRow.show();
+        // show/hide host vs mac when autodiscover
+        function toggleAutodiscover() {
+            if (autodisc.is(':checked')) {
+                macRow.show();
+                hostRow.hide();
+            } else {
+                macRow.hide();
+                hostRow.show();
+            }
         }
-        portRow.show();
-        usernameRow.show();
-        passwordRow.show();
+
+        // fetch MAC list
+        function loadControllers() {
+            $.getJSON(adminRoot + 'nhc2-config/discover')
+             .done(function(ctrls) {
+                 macSelect.empty();
+                 ctrls.forEach(function(c) {
+                     $('<option>')
+                       .val(c.mac)
+                       .text(c.mac + ' | Serial: ' + c.serial + ' | IP: ' + c.ip)
+                       .appendTo(macSelect);
+                 });
+                 if (node.mac) {
+                     macSelect.val(node.mac);
+                 }
+             })
+             .fail(function() {
+                 RED.notify('Failed to load controllers', 'error');
+             });
+        }
+
+        // Auto Discover toggled
+        autodisc.change(function() {
+            toggleAutodiscover();
+            toggleSecrets();
+            if ($(this).is(':checked')) {
+                loadControllers();
+            }
+        });
+
+        // Use Secrets toggled
+        useSecrets.change(toggleSecrets);
+
+        // Refresh Devices
+        refreshBtn.click(function() {
+            $.post(adminRoot + 'nhc2-config/' + node.id + '/refresh')
+             .done(function() { RED.notify('Refresh sent','success'); })
+             .fail(function() { RED.notify('Refresh failed','error'); });
+        });
+
+        // initial
+        toggleAutodiscover();
+        toggleSecrets();
+        if (node.autodiscover) {
+            loadControllers();
+        }
     }
 });
 </script>
