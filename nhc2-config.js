@@ -1,4 +1,6 @@
-const mqtt = require('mqtt');
+const mqtt               = require('mqtt');
+const fs                 = require('fs');
+const path               = require('path');
 const { discoverController } = require('./discover_nhc2');
 
 module.exports = function(RED) {
@@ -42,17 +44,42 @@ module.exports = function(RED) {
     const node = this;
 
     node.autodiscover = config.autodiscover;
-    node.host = config.host;
-    node.port = config.port || 8884;
-    node.username = config.username;
-    node.password = config.password;
-    node.debug = config.debug;
-    node.watchdog = config.watchdog;
-    node.devices = {};
-    node.mac = config.mac;
+    node.host         = config.host;
+    node.port         = config.port || 8884;
+    node.username     = config.username;
+    node.password     = config.password;
+    node.debug        = config.debug;
+    node.watchdog     = config.watchdog;
+    node.devices      = {};
+    node.mac          = config.mac;
+    node.use_secrets  = config.use_secrets || false;
 
     let messageTimer = null;
     const prefix = node.username;
+
+    // ——— NEW: load secrets.json if requested ———
+    if (node.use_secrets) {
+      if (!node.autodiscover) {
+        node.error('Use-Secrets requires Auto-Discover. Disabling this config node.');
+        return;
+      }
+      const secretsPath = path.join(__dirname, 'secrets.json');
+      if (!fs.existsSync(secretsPath)) {
+        node.error(`Secrets file not found at ${secretsPath}`);
+        return;
+      }
+      let s;
+      try {
+        s = JSON.parse(fs.readFileSync(secretsPath));
+      } catch (err) {
+        node.error(`Failed to parse secrets.json: ${err.message}`);
+        return;
+      }
+      node.username = s.username;
+      node.port     = s.port;
+      // password will be overwritten with controller serial in updateHost()
+    }
+    // ——— END NEW ———
 
     // Try to rediscover by MAC
     async function updateHost() {
@@ -62,9 +89,17 @@ module.exports = function(RED) {
         const match = ctrls.find(c => c.mac === node.mac);
         if (match) {
           node.host = match.ip;
-          if (node.debug) node.log(`[Autodiscover] IP -> ${node.host}`);
+          if (node.use_secrets) {
+            node.password = match.serial;
+          }
+          if (node.debug) {
+            node.log(
+              `[Autodiscover] IP=${node.host}` +
+              (node.use_secrets ? `, password=<controller-serial>` : '')
+            );
+          }
         } else if (node.debug) {
-          node.log(`[Autodiscover] no match; keeping ${node.host}`);
+          node.log(`[Autodiscover] no match; keeping host=${node.host}`);
         }
       } catch (err) {
         if (node.debug) node.error(`[Autodiscover] ${err.message}`);
@@ -77,18 +112,17 @@ module.exports = function(RED) {
 
       // Create a fresh MQTT client instance
       node.client = mqtt.connect({
-        host: node.host,
-        port: node.port,
-        username: node.username,
-        password: node.password,
-        protocol: 'mqtts',
+        host:              node.host,
+        port:              node.port,
+        username:          node.username,
+        password:          node.password,
+        protocol:          'mqtts',
         rejectUnauthorized: false,
-        reconnectPeriod: 0 // we handle retry manually
+        reconnectPeriod:    0
       });
 
       // Watchdog: if no message in 45s, force reconnect
       function resetWatchdog() {
-        // only run when checkbox is on
         if (!node.watchdog) return;
         if (messageTimer) clearTimeout(messageTimer);
         messageTimer = setTimeout(() => {
@@ -104,16 +138,11 @@ module.exports = function(RED) {
         if (node.debug) node.log('[MQTT] connected');
         node.client.subscribe(`${prefix}/control/devices/rsp`);
         node.refreshDevices();
-
-        // Notify child nodes of new client
         node.emit('client', node.client);
-
-        // Start watchdog
         resetWatchdog();
       });
 
       node.client.on('message', (topic, message) => {
-        // Reset watchdog on each message
         resetWatchdog();
         try {
           const p = JSON.parse(message.toString());
@@ -130,23 +159,16 @@ module.exports = function(RED) {
       });
 
       node.client.on('close', async () => {
-        // Clear watchdog
         if (messageTimer) clearTimeout(messageTimer);
         node.status({ fill: 'red', shape: 'ring', text: 'disconnected' });
         if (node.debug) node.log('[MQTT] closed — retry in 5s');
-        // Notify child nodes of disconnect
         node.emit('disconnect');
         await updateHost();
         setTimeout(connectMQTT, 5000);
       });
 
-            // MQTT error handler — ignore client-initiated disconnects
       node.client.on('error', err => {
-        if (err.message === 'client disconnecting') {
-          // silent ignore
-          return;
-        }
-        // emit disconnect for other errors
+        if (err.message === 'client disconnecting') return;
         node.emit('disconnect');
         if (node.debug) node.error('[MQTT] ' + err.message);
       });
@@ -162,13 +184,13 @@ module.exports = function(RED) {
       }
     };
 
+    // kick off connection
     connectMQTT();
 
     node.on('close', () => {
       if (node.client) node.client.end();
       if (messageTimer) clearTimeout(messageTimer);
       if (node.debug) node.log('[Config] closed');
-      // Final disconnect emit
       node.emit('disconnect');
     });
   }

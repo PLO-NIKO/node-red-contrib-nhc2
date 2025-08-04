@@ -1,10 +1,19 @@
 # Changelog
 
+## [1.16.0] - 2025-08-04
+### Added
+- 🟦 **Use Secrets** option in the Config node:
+  - Load `username` and `port` from `secrets.json` when Auto-Discover is enabled.
+  - Automatically set the MQTT password to the controller’s serial number upon discovery.
+  - Hide **Host**, **Port**, **Username** & **Password** fields in the UI when using secrets.
+  - Enforce that **Use Secrets** can only be enabled if **Auto Discover** is checked.
+  - Error out if `secrets.json` is missing or cannot be parsed.
+
 ## [1.15.33] - 2025-08-04
 - 🟦 **Improved:**
     - Added reconnect and disconnect messages to the UI
     - Added a Watchdog that can be enabled to auto reconnect if no message is received in 45 sec (BETA)
-    - Added support for Node-red in Homeassistant
+    - Added support for Node-RED in HomeAssistant
 
 ## [1.14.27] - 2025-08-02
 - 🟦 **Improved:**
@@ -23,12 +32,10 @@
   - After sending a control message, the node status now displays:
     - `sent: {payload} at HH:mm:ss`
   - Example: `sent: [{"Brightness":100}] at 14:32:11`
-
 - ✅ **Auto-Clearing Status:**
   - After 5 seconds of no new messages, the status automatically updates to:
     - `last OK at HH:mm:ss`
   - This provides a visual heartbeat confirming the last successful publish.
-
 - ⏰ **Timestamp Display:**
   - Both the `sent` and `last OK` status messages now include timestamps for better traceability.
 
