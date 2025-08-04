@@ -18,9 +18,9 @@
     "nodes": {
       "nhc2-config": "nhc2-config.js",
       "nhc2-input": "nhc2-input.js",
-      "nhc2-output": "nhc2-output.js",
-      "version": ">=3.1.0"
-    }
+      "nhc2-output": "nhc2-output.js"
+    },
+    "version": ">=3.1.0"
   },
   "dependencies": {
     "mqtt": "^4.2.0"
