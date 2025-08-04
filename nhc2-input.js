@@ -1,3 +1,4 @@
+// nhc2-input.js
 module.exports = function(RED) {
   function NHC2InputNode(config) {
     RED.nodes.createNode(this, config);
@@ -5,71 +6,59 @@ module.exports = function(RED) {
     node.deviceUuid = config.deviceUuid;
     node.property   = config.property;
 
-    let waitInterval = null;
-    let cfgNode = null;
+    let cfgNode;
+    let currentHandler;
 
-    // Initialize or re-check configuration
-    function init() {
-      cfgNode = RED.nodes.getNode(config.config);
-      if (!cfgNode) {
-        node.status({ fill: 'yellow', shape: 'ring', text: 'waiting for config' });
-      } else if (!cfgNode.client) {
-        node.status({ fill: 'yellow', shape: 'ring', text: 'waiting for client' });
-      } else {
-        setupSharedListener();
-        if (waitInterval) {
-          clearInterval(waitInterval);
-          waitInterval = null;
+    // Attach to a fresh client
+    function attachClient(client) {
+      const prefix = cfgNode.username;
+      client.subscribe(`${prefix}/control/devices/evt`);
+      client.subscribe(`${prefix}/control/devices/rsp`);
+
+      if (currentHandler) {
+        client.off('message', currentHandler);
+      }
+      currentHandler = (topic, message) => {
+        let payload;
+        try {
+          payload = JSON.parse(message.toString());
+        } catch (err) {
+          if (cfgNode.debug) node.error('[NHC2 Input] JSON parse error: ' + err);
+          return;
         }
-      }
-    }
-
-    // Register node and shared handler on the config node
-    function setupSharedListener() {
-      // Track all input instances on this config node
-      cfgNode._nhc2Listeners = cfgNode._nhc2Listeners || [];
-      if (!cfgNode._nhc2Listeners.includes(node)) {
-        cfgNode._nhc2Listeners.push(node);
-      }
-
-      // If shared handler not yet registered, do so now
-      if (!cfgNode._nhc2HandlerRegistered) {
-        const prefix = cfgNode.username;
-        cfgNode.client.subscribe(`${prefix}/control/devices/evt`);
-        cfgNode.client.subscribe(`${prefix}/control/devices/rsp`);
-
-        cfgNode.client.on('message', (topic, message) => {
-          let payload;
-          try { payload = JSON.parse(message.toString()); }
-          catch (err) { if (cfgNode.debug) RED.log.error('[NHC2 Input] JSON parse error: ' + err); return; }
-
-          const method = payload.Method;
-          const devices = payload.Params?.[0]?.Devices || [];
-
-          // Dispatch to each registered node
-          cfgNode._nhc2Listeners.forEach(n => {
-            devices.forEach(dev => {
-              if (!n.deviceUuid || dev.Uuid === n.deviceUuid) {
-                handleDevicePayload(n, dev, method);
-              }
-            });
-          });
+        const method  = payload.Method;
+        const devices = payload.Params?.[0]?.Devices || [];
+        devices.forEach(dev => {
+          if (!node.deviceUuid || dev.Uuid === node.deviceUuid) {
+            handleDevicePayload(node, dev, method);
+          }
         });
+      };
+      client.on('message', currentHandler);
 
-        cfgNode._nhc2HandlerRegistered = true;
-      }
+      // Mirror MQTT status
+      client.on('close', () => {
+        node.status({ fill: 'red', shape: 'ring', text: 'disconnected' });
+        node.log('NHC2 Input: client disconnected');
+      });
+      client.on('reconnect', () => {
+        node.status({ fill: 'yellow', shape: 'ring', text: 'reconnecting' });
+        node.log('NHC2 Input: client reconnecting');
+      });
+      client.on('connect', () => {
+        node.status({ fill: 'green', shape: 'dot', text: 'listening' });
+        node.log('NHC2 Input: client listening');
+      });
 
-      // Indicate listening state on this node
       node.status({ fill: 'green', shape: 'dot', text: 'listening' });
       node.log('NHC2 Input: listening for events');
     }
 
-    // Process a single device payload for a node instance
+    // Exactly the same payload‐dispatch logic you had
     function handleDevicePayload(n, dev, method) {
       const info = cfgNode.devices[dev.Uuid] || { Name: dev.Uuid };
       let lastB = n.context().get('lastBrightness') || null;
 
-      // Initialize brightness from device list
       if (method === 'devices.list') {
         dev.Properties.forEach(p => {
           if (p.hasOwnProperty('Brightness')) lastB = p.Brightness;
@@ -78,16 +67,16 @@ module.exports = function(RED) {
         return;
       }
 
-      // Helper to send output
-      function send(out) {
-        const timestamp = new Date().toLocaleTimeString('en-GB', {
-          hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3
+      function send(val) {
+        const ts = new Date().toLocaleTimeString('en-GB', {
+          hour12: false, hour: '2-digit',
+          minute: '2-digit', second: '2-digit',
+          fractionalSecondDigits: 3
         });
-        n.send({ topic: info.Name, payload: out, device: info });
-        n.status({ fill: 'green', shape: 'dot', text: `${out} @ ${timestamp}` });
+        n.send({ topic: info.Name, payload: val, device: info });
+        n.status({ fill: 'green', shape: 'dot', text: `${val} @ ${ts}` });
       }
 
-      // If listening for Brightness, send on both brightness and status changes
       if (n.property === 'Brightness') {
         dev.Properties.forEach(p => {
           if (p.hasOwnProperty('Brightness')) {
@@ -101,29 +90,40 @@ module.exports = function(RED) {
         });
         n.context().set('lastBrightness', lastB);
       }
-      // If listening for a specific property
       else if (n.property) {
         dev.Properties.forEach(p => {
           if (p.hasOwnProperty(n.property)) send(p[n.property]);
         });
       }
-      // If no property selected, merge and send all
       else {
         const merged = dev.Properties.reduce((acc, p) => Object.assign(acc, p), {});
         send(merged);
       }
     }
 
-    init();
-    // Continue polling until setup
-    if (!waitInterval) {
-      waitInterval = setInterval(init, 1000);
+    // Initial wiring
+    function init() {
+      cfgNode = RED.nodes.getNode(config.config);
+      if (!cfgNode) {
+        node.status({ fill: 'yellow', shape: 'ring', text: 'waiting for config' });
+        return;
+      }
+      // Re‐attach whenever we get a fresh client
+      cfgNode.on('client', attachClient);
+      if (cfgNode.client && cfgNode.client.connected) {
+        attachClient(cfgNode.client);
+      } else {
+        node.status({ fill: 'yellow', shape: 'ring', text: 'waiting for client' });
+      }
     }
+    init();
 
     node.on('close', () => {
-      if (waitInterval) clearInterval(waitInterval);
-      if (cfgNode && cfgNode._nhc2Listeners) {
-        cfgNode._nhc2Listeners = cfgNode._nhc2Listeners.filter(n => n !== node);
+      if (cfgNode) {
+        cfgNode.removeListener('client', attachClient);
+        if (cfgNode.client && currentHandler) {
+          cfgNode.client.off('message', currentHandler);
+        }
       }
     });
   }

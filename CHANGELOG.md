@@ -1,10 +1,15 @@
 # Changelog
 
+## [1.15.33] - 2025-08-04
+- 🟦 **Improved:**
+    - Added reconnect and disconnect messages to the UI
+    - Added a Watchdog that can be enabled to auto reconnect if no message is received in 45 sec (BETA)
+    - Added support for Node-red in Homeassistant
+
 ## [1.14.27] - 2025-08-02
 - 🟦 **Improved:**
     - Added auto discovery of the Controller by MAC (takes a bit longer to connect due to this)
     - Can still use IP-address as well, if auto discovery does not work
-
 
 ## [1.13.X] - 2025-07-25
 - 🟦 **Improved:**
