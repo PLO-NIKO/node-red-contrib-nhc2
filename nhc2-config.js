@@ -34,7 +34,7 @@ module.exports = function(RED) {
     '/nhc2-config/discover',
     RED.auth.needsPermission('nhc2-config.read'),
     async (req, res) => {
-      const controllers = await discoverController({ timeout: 5000, multiple: true });
+      const controllers = await discoverController({ timeout: 1500, multiple: true });
       res.json(controllers || []);
     }
   );
