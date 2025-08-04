@@ -33,7 +33,6 @@ Control and monitor your NHC2 system directly from Node-RED.
 
 * **Node.js** ≥ 16.0.0
 * **Node-RED** ≥ 3.1.0
-* An MQTT broker supporting MQTT over TLS (e.g., Mosquitto)
 * Niko Home Control 2 with the Hobby API enabled
 
 ## Installation
