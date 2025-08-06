@@ -157,15 +157,18 @@ Import `examples/usage_example.json` into Node-RED to see a complete demo flow.
 For the full changelog, see [CHANGELOG.md](CHANGELOG.md).
 
 <details>
-<summary>v1.17.0 — July 15, 2025</summary>
+<summary>v1.17.0</summary>
 
-### Removed
+**Removed**
 
-* **Use Secrets** option in the Config node UI; credentials and port now load automatically from `secrets.json`.
+* Use Secrets toggle removed from the Config node UI.
 
-### Changed
+**Changed**
 
-* **Watchdog**: listens for a keep-alive message every 30 seconds to reset the reconnect timer.
+* Watchdog: listens for a keep-alive message every 30 seconds to reset the reconnect timer.
+* Improved the save-restore on the nodes
+* Improved filter, so it shows the first device while searching
+
 
 </details>
 
