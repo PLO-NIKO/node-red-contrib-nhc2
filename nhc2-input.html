@@ -56,8 +56,8 @@ RED.nodes.registerType('nhc2-input',{
     const me = this;
     let devices = [];
 
-    // ✅ Only read once and never overwrite
     const savedDeviceUuid = this.deviceUuid;
+    const savedDeviceName = this.deviceName;
     const savedProperty   = this.property;
 
     console.log('[nhc2-input] oneditprepare: initial deviceUuid', savedDeviceUuid, 'property', savedProperty);
@@ -71,14 +71,15 @@ RED.nodes.registerType('nhc2-input',{
       const filter = $('#node-input-deviceFilter').val().toLowerCase();
       const select = $('#node-input-deviceUuid').empty();
 
-      devices.filter(d=> formatLabel(d).toLowerCase().includes(filter)).forEach(d=>{
+      const matches = devices.filter(d => formatLabel(d).toLowerCase().includes(filter));
+      matches.forEach(d => {
         $('<option>').val(d.Uuid).text(formatLabel(d)).appendTo(select);
       });
 
-      // ✅ Restore saved value
-      console.log('[nhc2-input] filterAndRender: restoring deviceUuid', savedDeviceUuid);
-      select.val(savedDeviceUuid || '');
-      select.trigger('change');
+      if (matches.length > 0) {
+        // Always select first match
+        select.val(matches[0].Uuid).trigger('change');
+      }
     }
 
     function populateDevices(){
@@ -87,7 +88,19 @@ RED.nodes.registerType('nhc2-input',{
       console.log('[nhc2-input] populateDevices: loading devices for config', cid);
       $.getJSON(adminRoot + 'nhc2-config/' + cid + '/devices').done(devsObj=>{
         devices = Object.values(devsObj);
-        filterAndRender();
+
+        const select = $('#node-input-deviceUuid').empty();
+        devices.forEach(d => {
+          $('<option>').val(d.Uuid).text(formatLabel(d)).appendTo(select);
+        });
+
+        if (devices.find(d => d.Uuid === savedDeviceUuid)) {
+          select.val(savedDeviceUuid);
+        } else if (devices.length > 0) {
+          select.prop("selectedIndex", 0);
+        }
+
+        select.trigger('change');
       });
     }
 
@@ -106,7 +119,6 @@ RED.nodes.registerType('nhc2-input',{
         $('<option>').val(name).text(name).appendTo(propSel);
       });
 
-      // ✅ Restore saved property
       const exists = defs.some(o => Object.keys(o)[0] === savedProperty);
       if (exists || savedProperty === '') {
         propSel.val(savedProperty);
@@ -128,10 +140,13 @@ RED.nodes.registerType('nhc2-input',{
       });
     }
 
+    // Event handlers
     $('#node-input-config').on('change', populateDevices);
     $('#node-input-deviceFilter').on('input', filterAndRender);
     $('#node-input-deviceUuid').on('change', function() {
       me.deviceUuid = $(this).val();
+      const selected = devices.find(d => d.Uuid === me.deviceUuid);
+      me.deviceName = selected ? selected.Name : '';
       populateProperties();
     });
     $('#node-input-property').on('change', function() {
@@ -141,6 +156,19 @@ RED.nodes.registerType('nhc2-input',{
     $('#node-input-config').val(this.config);
     $('#node-input-deviceFilter').val('');
     populateDevices();
+
+    // ✅ Restore saved values if user cancels
+    this._restoreOriginal = function() {
+      this.deviceUuid  = savedDeviceUuid;
+      this.deviceName  = savedDeviceName;
+      this.property    = savedProperty;
+      console.log('[nhc2-input] oneditcancel: restored previous values');
+    };
+  },
+  oneditcancel: function() {
+    if (typeof this._restoreOriginal === 'function') {
+      this._restoreOriginal();
+    }
   }
 });
 </script>

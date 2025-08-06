@@ -12,6 +12,7 @@
 
 * Watchdog: listens for a keep-alive message every 30 seconds to reset the reconnect timer.
 * Improved the save-restore on the nodes
+* Improved filter, so it shows the first device while searching
 
 ---
 
