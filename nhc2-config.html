@@ -53,7 +53,6 @@ RED.nodes.registerType('nhc2-config',{
         password:     {value:""},
         debug:        {value:false},
         watchdog:     {value:false},
-        use_secrets:  {value:false}
     },
     label: function() {
         return this.name || "nhc2-config";
@@ -73,7 +72,6 @@ RED.nodes.registerType('nhc2-config',{
         var passInput   = $("#node-config-input-password");
         var debugCheck  = $("#node-config-input-debug");
         var wdCheck     = $("#node-config-input-watchdog");
-        var useSecrets  = $("#node-config-input-use_secrets");
         var refreshBtn  = $("#node-config-refresh");
 
         // normalize adminRoot
@@ -93,26 +91,19 @@ RED.nodes.registerType('nhc2-config',{
         passInput.val(node.password);
         debugCheck.prop('checked', node.debug);
         wdCheck.prop('checked', node.watchdog);
-        useSecrets.prop('checked', node.use_secrets);
 
         // show/hide host/port/user/pass when Use Secrets
         function toggleSecrets() {
-            if (useSecrets.is(':checked')) {
-                hostRow.hide();
-                portRow.hide();
-                usernameRow.hide();
-                passwordRow.hide();
-            } else {
-                // host depends on autodiscover
-                if (autodisc.is(':checked')) {
-                    hostRow.hide();
-                } else {
-                    hostRow.show();
-                }
-                portRow.show();
-                usernameRow.show();
-                passwordRow.show();
-            }
+          // host depends on autodiscover
+          if (autodisc.is(':checked')) {
+              hostRow.hide();
+          } else {
+              hostRow.show();
+          }
+          portRow.show();
+          usernameRow.show();
+          passwordRow.show();
+            
         }
 
         // show/hide host vs mac when autodiscover
@@ -154,9 +145,6 @@ RED.nodes.registerType('nhc2-config',{
                 loadControllers();
             }
         });
-
-        // Use Secrets toggled
-        useSecrets.change(toggleSecrets);
 
         // Refresh Devices
         refreshBtn.click(function() {

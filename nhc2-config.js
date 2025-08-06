@@ -52,13 +52,12 @@ module.exports = function(RED) {
     node.watchdog     = config.watchdog;
     node.devices      = {};
     node.mac          = config.mac;
-    node.use_secrets  = config.use_secrets || false;
 
     let messageTimer = null;
     const prefix = node.username;
 
     // ——— NEW: load secrets.json if requested ———
-    if (node.use_secrets) {
+    if (false) { //Keep in case we wand to integrate secrets.json again
       if (!node.autodiscover) {
         node.error('Use-Secrets requires Auto-Discover. Disabling this config node.');
         return;
@@ -89,14 +88,9 @@ module.exports = function(RED) {
         const match = ctrls.find(c => c.mac === node.mac);
         if (match) {
           node.host = match.ip;
-          if (node.use_secrets) {
-            node.password = match.serial;
-          }
           if (node.debug) {
-            node.log(
-              `[Autodiscover] IP=${node.host}` +
-              (node.use_secrets ? `, password=<controller-serial>` : '')
-            );
+            node.log(`[Autodiscover] IP=${node.host}`)
+            ;
           }
         } else if (node.debug) {
           node.log(`[Autodiscover] no match; keeping host=${node.host}`);
@@ -124,7 +118,10 @@ module.exports = function(RED) {
       // Watchdog: if no message in 45s, force reconnect
       function resetWatchdog() {
         if (!node.watchdog) return;
-        if (messageTimer) clearTimeout(messageTimer);
+        if (messageTimer) {
+          clearTimeout(messageTimer)
+          if (node.debug && false) node.log('[Watchdog] Message received, resetting timer');
+        };
         messageTimer = setTimeout(() => {
           node.status({ fill: 'yellow', shape: 'ring', text: 'no messages, reconnecting' });
           if (node.debug) node.log('[Watchdog] no message in 45s, forcing reconnect');
@@ -137,6 +134,9 @@ module.exports = function(RED) {
         node.status({ fill: 'green', shape: 'dot', text: 'connected' });
         if (node.debug) node.log('[MQTT] connected');
         node.client.subscribe(`${prefix}/control/devices/rsp`);
+        if (node.watchdog) {
+          node.client.subscribe(`${prefix}/system/evt`); // For watchdog reset events
+        }
         node.refreshDevices();
         node.emit('client', node.client);
         resetWatchdog();

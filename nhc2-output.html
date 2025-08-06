@@ -5,10 +5,7 @@
   </div>
   <div class="form-row">
     <label>Search</label>
-    <input type="text"
-           id="node-input-deviceFilter"
-           placeholder="Type to filter devices…"
-           style="width:100%">
+    <input type="text" id="node-input-deviceFilter" placeholder="Type to filter devices…" style="width:100%">
   </div>
   <div class="form-row">
     <label>Device</label>
@@ -21,8 +18,7 @@
   </div>
   <div class="form-row">
     <label>Definitions</label>
-    <table id="node-input-propertyTable"
-           style="width:100%;border-collapse:collapse">
+    <table id="node-input-propertyTable" style="width:100%;border-collapse:collapse">
       <thead>
         <tr>
           <th style="text-align:left">Property</th>
@@ -41,32 +37,30 @@ RED.nodes.registerType('nhc2-output',{
   defaults: {
     config:      { type:'nhc2-config', required:true },
     deviceUuid:  { value:'', required:true },
-    deviceName:  { value:'' },    // ← new hidden field
+    deviceName:  { value:'' },
     property:    { value:'' }
   },
   inputs: 1, outputs: 0,
   icon: 'bridge.svg',
-  // dynamic label reads the stored deviceName + property (or falls back)
   label: function() {
     const name = this.deviceName || 'NHC2 Out';
-    const prop = this.property  || 'All';
+    const prop = this.property || 'All';
     return `${name} [${prop}]`;
   },
   oneditprepare: function(){
-    // normalize adminRoot
     const rawRoot = RED.settings.httpAdminRoot;
     const p = window.location.pathname;
-    const fallbackDir  = p.substring(0, p.lastIndexOf('/'));
-    const fallbackRoot = fallbackDir + '/';
-    let adminRoot = '';
-    if (rawRoot && rawRoot !== '/') {
-      adminRoot = rawRoot.endsWith('/') ? rawRoot : rawRoot + '/';
-    } else {
-      adminRoot = fallbackRoot;
-    }
+    const fallbackDir = p.substring(0, p.lastIndexOf('/'));
+    let adminRoot = rawRoot && rawRoot !== '/' ? (rawRoot.endsWith('/') ? rawRoot : rawRoot + '/') : fallbackDir + '/';
 
     const me = this;
     let devices = [];
+
+    // ✅ Only read once and never overwrite
+    const savedDeviceUuid = this.deviceUuid;
+    const savedProperty   = this.property;
+
+    console.log('[nhc2-output] oneditprepare: initial deviceUuid', savedDeviceUuid, 'property', savedProperty);
 
     function formatLabel(d){
       const loc = (d.Parameters.find(p=>p.LocationName)||{}).LocationName || '';
@@ -76,61 +70,51 @@ RED.nodes.registerType('nhc2-output',{
     function filterAndRender(){
       const filter = $('#node-input-deviceFilter').val().toLowerCase();
       const select = $('#node-input-deviceUuid').empty();
-      devices
-        .filter(d=> formatLabel(d).toLowerCase().includes(filter) )
-        .forEach(d=>{
-          $('<option>')
-            .val(d.Uuid)
-            .text(formatLabel(d))
-            .appendTo(select);
-        });
-      if (me.deviceUuid){
-        select.val(me.deviceUuid);
-      }
-      $('#node-input-deviceName').val(
-        (devices.find(d=>d.Uuid===select.val())||{}).Name || ''
-      );
+
+      devices.filter(d=> formatLabel(d).toLowerCase().includes(filter)).forEach(d=>{
+        $('<option>').val(d.Uuid).text(formatLabel(d)).appendTo(select);
+      });
+
+      // ✅ Restore saved value
+      console.log('[nhc2-output] filterAndRender: restoring deviceUuid', savedDeviceUuid);
+      select.val(savedDeviceUuid || '');
       select.trigger('change');
     }
 
     function populateDevices(){
       const cid = $('#node-input-config').val();
-      if (!cid) { return; }
-      $.getJSON(adminRoot + 'nhc2-config/' + cid + '/devices')
-        .done(devsObj=>{
-          devices = Object.values(devsObj);
-          const cfg = RED.nodes.node(me.config);
-          if (cfg) { cfg.devices = devices; }
-          filterAndRender();
-        });
+      if (!cid) return;
+      console.log('[nhc2-output] populateDevices: loading devices for config', cid);
+      $.getJSON(adminRoot + 'nhc2-config/' + cid + '/devices').done(devsObj=>{
+        devices = Object.values(devsObj);
+        filterAndRender();
+      });
     }
 
-      function populateProperties(){
+    function populateProperties(){
       const uuid = $('#node-input-deviceUuid').val();
-      me.deviceUuid = uuid;
-      const dev = devices.find(d=>d.Uuid===uuid);
-      if (!dev) { return; }
+      const dev = devices.find(d=>d.Uuid === uuid);
+      if (!dev) return;
 
-      const defs = dev.PropertyDefinitions || [];
+      $('#node-input-deviceName').val(dev.Name);
       const propSel = $('#node-input-property').empty();
 
-      // ← Add the “All” entry first
-      $('<option>')
-        .val('')
-        .text('All')
-        .appendTo(propSel);
-
-      // Then list each real property
+      $('<option>').val('').text('All').appendTo(propSel);
+      const defs = dev.PropertyDefinitions || [];
       defs.forEach(o=>{
         const name = Object.keys(o)[0];
-        $('<option>')
-          .val(name)
-          .text(name)
-          .appendTo(propSel);
+        $('<option>').val(name).text(name).appendTo(propSel);
       });
 
-      // Restore last saved or default to “All”
-      propSel.val(me.property || '');
+      // ✅ Restore saved property
+      const exists = defs.some(o => Object.keys(o)[0] === savedProperty);
+      if (exists || savedProperty === '') {
+        propSel.val(savedProperty);
+        console.log('[nhc2-output] populateProperties: restored property', savedProperty);
+      } else {
+        propSel.prop("selectedIndex", 0);
+        console.log('[nhc2-output] populateProperties: property not found, defaulting to All');
+      }
 
       const tb = $('#node-input-propertyTable tbody').empty();
       defs.forEach(o=>{
@@ -144,23 +128,17 @@ RED.nodes.registerType('nhc2-output',{
       });
     }
 
-    // event wiring
     $('#node-input-config').on('change', populateDevices);
     $('#node-input-deviceFilter').on('input', filterAndRender);
-    $('#node-input-deviceUuid').on('change', ()=>{
-      $('#node-input-deviceName').val(
-        (devices.find(d=>d.Uuid===$('#node-input-deviceUuid').val())||{}).Name || ''
-      );
+    $('#node-input-deviceUuid').on('change', function() {
+      me.deviceUuid = $(this).val();
       populateProperties();
     });
-    $('#node-input-property').on('change', ()=>{
-      me.property = $('#node-input-property').val();
+    $('#node-input-property').on('change', function() {
+      me.property = $(this).val();
     });
 
-    // initialization
     $('#node-input-config').val(this.config);
-    me.deviceUuid = this.deviceUuid;
-    me.property   = this.property;
     $('#node-input-deviceFilter').val('');
     populateDevices();
   }

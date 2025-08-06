@@ -63,13 +63,12 @@ Configure your connection to the NHC2 controller.
 * **Username**: MQTT topic prefix (default `hobby`)
 * **Password**: Hobby API password from NHC2 programming software
 * **Debug**: Enable verbose logging output
-* **Watchdog**: Auto-reconnect if no MQTT message received in 45 seconds (BETA)
-* **Use Secrets**: Load credentials & port from `secrets.json` (requires Auto Discover)
+* **Watchdog**: Listens for a keep-alive message from the controller every 30 seconds, resetting the reconnect timer to ensure the connection is alive.
 * **Refresh Devices**: Manually refresh the device list
 
 ### Example `secrets.json`
 
-Create a file named `secrets.json` in your `node-red-contrib-nhc2` directory with the following content:
+If you'd like to use a `secrets.json` file instead of configuring credentials in the UI, create a file named `secrets.json` in your `node-red-contrib-nhc2` directory with the following content:
 
 ```json
 {
@@ -155,11 +154,20 @@ Import `examples/usage_example.json` into Node-RED to see a complete demo flow.
 
 ## Changelog
 
-For details on recent changes, see [CHANGELOG.md](CHANGELOG.md). Notable in **v1.16.0**:
+For the full changelog, see [CHANGELOG.md](CHANGELOG.md).
 
-* 🟦 **Use Secrets** support (`secrets.json` loading, hidden fields, enforcement)
-* Auto-set password to controller serial number on discovery
-* Error handling for missing or invalid `secrets.json`
+<details>
+<summary>v1.17.0 — July 15, 2025</summary>
+
+### Removed
+
+* **Use Secrets** option in the Config node UI; credentials and port now load automatically from `secrets.json`.
+
+### Changed
+
+* **Watchdog**: listens for a keep-alive message every 30 seconds to reset the reconnect timer.
+
+</details>
 
 ## Contributing
 
