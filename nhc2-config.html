@@ -1,42 +1,62 @@
 <script type="text/html" data-template-name="nhc2-config">
+  <style>
+    .form-row { display: flex; flex-direction: column; margin-bottom: 10px; }
+    .form-row label { font-weight: bold; margin-bottom: 4px; }
+    .help-block { margin-top: 2px; font-size: 0.875em; color: #666; }
+    .form-actions { text-align: right; margin-top: 15px; }
+  </style>
+
   <div class="form-row">
     <label for="node-config-input-autodiscover"><i class="fa fa-plug"></i> Auto Discover</label>
     <input type="checkbox" id="node-config-input-autodiscover" />
+    <div class="help-block">Automatically scan your network to find compatible controllers.</div>
   </div>
+
   <div class="form-row" id="mac-select-row" style="display:none;">
     <label for="node-config-input-mac"><i class="fa fa-hashtag"></i> Select Controller (MAC)</label>
     <select id="node-config-input-mac" style="width:100%"></select>
+    <div class="help-block">Choose a discovered controller by its MAC address.</div>
   </div>
+
   <div class="form-row" id="host-row">
     <label for="node-config-input-host"><i class="fa fa-server"></i> Host</label>
     <input type="text" id="node-config-input-host" placeholder="e.g. 192.168.1.10" />
+    <div class="help-block">IP address or hostname of the controller (used if Auto Discover is disabled).</div>
   </div>
+
   <div class="form-row" id="port-row">
     <label for="node-config-input-port"><i class="fa fa-plug"></i> Port</label>
-    <input type="number" id="node-config-input-port" placeholder="e.g. 8884" />
+    <input type="number" id="node-config-input-port" placeholder="e.g. 8884" value="8884" />
+    <div class="help-block">Port number on which the controller listens for connections. Defaults to 8884 when username is "hobby".</div>
   </div>
+
   <div class="form-row" id="username-row">
     <label for="node-config-input-username"><i class="fa fa-user"></i> Username</label>
-    <input type="text" id="node-config-input-username" />
+    <input type="text" id="node-config-input-username" value="hobby" />
+    <div class="help-block">Username for authenticating with the controller’s API. Often "hobby" for standard setups.</div>
   </div>
+
   <div class="form-row" id="password-row">
     <label for="node-config-input-password"><i class="fa fa-key"></i> Password</label>
     <input type="password" id="node-config-input-password" />
+    <div class="help-block">Password for authenticating with the controller’s API.</div>
   </div>
+
   <div class="form-row">
     <label for="node-config-input-debug"><i class="fa fa-bug"></i> Debug</label>
     <input type="checkbox" id="node-config-input-debug" />
+    <div class="help-block">Enable verbose logging to help troubleshoot communication issues.</div>
   </div>
+
   <div class="form-row">
     <label for="node-config-input-watchdog"><i class="fa fa-shield"></i> Watchdog</label>
     <input type="checkbox" id="node-config-input-watchdog" />
+    <div class="help-block">Automatically reconnect if no ping is received from the controller within 30 seconds. Recommended when Auto Discover is enabled.</div>
   </div>
-  <div class="form-row">
-    <label for="node-config-input-use_secrets"><i class="fa fa-lock"></i> Use Secrets</label>
-    <input type="checkbox" id="node-config-input-use_secrets" title="Use secrets from secure storage" />
-  </div>
-  <div class="form-row">
+
+  <div class="form-actions">
     <button type="button" id="node-config-refresh" class="primary">Refresh Devices</button>
+    <div class="help-block" style="display:inline-block; margin-left:10px;">Manually reload the list of devices from the controller.</div>
   </div>
 </script>
 

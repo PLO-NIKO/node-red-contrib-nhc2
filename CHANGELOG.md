@@ -2,6 +2,15 @@
 
 ---
 
+## Version 1.17.0 (2025-08-07)
+
+**Added**
+- NHC2→Hue Mapping node with three modes (node-red-contrib-huemagic-fork):
+  - **Brightness**: maps 0–100 to `brightness` (and `on` if >0)
+  - **Color Temperature**: maps 0–100 to `colorTemp` (153–500 mireds)
+  - **Color (RGB)**: cycles full color hue across 0–100 and outputs `rgb: [r,g,b]`
+
+
 ## Version 1.17.0 (2025-08-06)
 
 **Removed**

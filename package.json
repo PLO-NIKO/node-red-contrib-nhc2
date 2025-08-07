@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-nhc2",
-  "version": "1.17.25",
+  "version": "1.18.0",
   "description": "Node-RED nodes for Niko Home Control 2 via MQTT",
   "keywords": [
     "node-red",
@@ -18,7 +18,8 @@
     "nodes": {
       "nhc2-config": "nhc2-config.js",
       "nhc2-input": "nhc2-input.js",
-      "nhc2-output": "nhc2-output.js"
+      "nhc2-output": "nhc2-output.js",
+      "nhc2-hue-mapping": "nhc2-hue-mapping.js"
     },
     "version": ">=3.1.0"
   },

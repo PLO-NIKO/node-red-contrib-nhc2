@@ -1,0 +1,43 @@
+<script type="text/javascript">
+// Register the custom node
+RED.nodes.registerType('nhc2-hue-mapping',{ 
+    category: 'function',
+    color: '#a6bbcf',
+    defaults: {
+        name: { value: "" },
+        mode: { value: "brightness" }
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "font-awesome/fa-arrows-h",
+    label: function() {
+        return this.name || 'NHC2→Hue (' + this.mode + ')';
+    }
+});
+</script>
+
+<!-- Editor UI -->
+<script type="text/html" data-template-name="nhc2-hue-mapping">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-mode"><i class="fa fa-cog"></i> Mode</label>
+        <select id="node-input-mode">
+            <option value="brightness">Brightness</option>
+            <option value="colorTemp">Color Temperature</option>
+            <option value="color">Color (RGB)</option>
+        </select>
+    </div>
+</script>
+
+<!-- Help text -->
+<script type="text/html" data-help-name="nhc2-hue-mapping">
+    <p>Configure how the NHC2 input is mapped to a HueMagic payload.</p>
+    <ul>
+        <li><b>Brightness</b>: Maps numeric 0–100 to <code>brightness</code> (and <code>on</code> if >0).</li>
+        <li><b>Color Temperature</b>: Maps 0–100 to <code>colorTemp</code> in mireds (153–500).</li>
+        <li><b>Color (RGB)</b>: Traverses the color spectrum by mapping 0–100 to hue and converting to an RGB array.</li>
+    </ul>
+</script>
