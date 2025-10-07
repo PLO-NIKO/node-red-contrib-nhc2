@@ -126,43 +126,59 @@ Send control commands to your NHC2 devices.
 
 ### NHC2 Hue Mapping Node
 
-Map NHC2 numeric or boolean payloads to HueMagic payload objects for Philips Hue commands.
+Maps NHC2 / HA-like payloads to **Hue**-friendly objects.
 
-* **Inputs:** 1  
-* **Outputs:** 1  
+**Inputs / Outputs**
+- Inputs: 1
+- Outputs: 1
 
-**Configuration:**  
-* **Name**: Descriptive name for the node  
-* **Mode**: Choose mapping mode:  
-  * `brightness` (default): Map `0–100` to `brightness` (and `on` if > 0)  
-  * `colorTemp`: Map `0–100` to `colorTemp` in mireds (`153–500`) and `on` if > 0  
-  * `color`: Map `0–100` across the color spectrum (hue `0–360`) and convert to an RGB array  
+**Editor settings**
+- **Number input maps to**: `brightness` | `tunable white` | `color hue`
+- **Accept color-frames as input** *(default OFF)* — accepts `{rgb:[r,g,b]}`, `{r,g,b}`, `{h,s,v}`/`{hue,sat,val}`, `{kelvin}`, `{mireds}`
+- **Color input may change brightness** *(default OFF)* — when OFF, color never changes brightness
+- **Auto-include CT when in white mode** *(default ON)* — always emits last CT so Hue leaves colour mode
+- **Map Kelvin range to full Hue CT span (153–500)** *(default ON)* — `minKelvin → 500`, `maxKelvin → 153`
+- **CT range (Kelvin)**: `minKelvin`, `maxKelvin`
+- **Listen ColorMode** *(default ON)* — obey `{ ColorMode:"TunableWhite"|"Color" }` or `{ mode:"white"|"colour" }`
+- **Quiet status**
 
-**Behavior:**
+**Behavior**
+- **On/Off**: boolean, `{switch:true|false}`, or `{ Status:"On"|"Off" }` → `{ on:… }`
+- **Brightness**: `{Brightness:"62"}` / `{brightness:62}` → `{ brightness:62 }` (sticky until changed)
+- **Tunable White**:
+  - `{TunableWhite:"cwww(k, x)"}` → `colorTemp` from **k**; **x is ignored for brightness**
+  - `{temperature: 0..100}` → mapped across `[minKelvin..maxKelvin]`, then converted to Hue mireds
+  - `{kelvin:k}` / `{mireds:m}` (when color-frames enabled)
+  - Output **always** uses `colorTemp` (mireds), clamped **153–500**
+  - If **Map Kelvin range…** is ON: `minKelvin → 500`, `maxKelvin → 153` linearly
+- **Color**: `{Color:"hsv(h,s,v)"}` or `{Color:"rgb(r,g,b)"}` → `{ rgb:[r,g,b] }`
+  - By default, no `brightness` included; turn on *Color input may change brightness* to let HSV/V set it
+- **Mode switching**: `{ ColorMode:"TunableWhite" }` (or `{ mode:"white" }`) → emits latest `colorTemp` so Hue leaves colour mode; brightness sticks
 
-* If `msg.payload` is a string:  
-  * `"on"` / `"off"` (case-insensitive) → `{ on: true|false }`  
-  * Numeric string → parsed as number and processed below  
-* If `msg.payload` is a boolean → `{ on: payload }`  
-* If `msg.payload` is a number → mapped according to **Mode** and output as `{ brightness|colorTemp|rgb, on? }`  
-* Other payload types → warning: Unsupported payload  
+#### Single integer input (0–100)
+Yes, still supported and selectable via **Number input maps to**:
 
-**Example Flows:**
+- **Brightness** (default): `42` → `{ "brightness": 42, "on": true }`
+- **Tunable white**: `42` → `colorTemp` mapped from 42% of `[minKelvin..maxKelvin]` → mireds (clamped 153–500)
+- **Color hue**: `42` → hue≈`42*3.6`°, RGB from `HSV(h,100%,V=last_brightness)` → `{ "rgb":[r,g,b] }`
 
-```js
-// Brightness mode:
-// Input msg.payload = 75
-// Output msg.payload = { brightness: 75, on: true }
+**Examples**
+```jsonc
+// Sticky brightness
+{ "Brightness":"37" }                  // → { "brightness": 37, "on": true }
+{ "TunableWhite":"cwww(2700,100)" }    // → { "colorTemp": 500, "on": true }   // if map-to-full ON & minK=2700
 
-// Color Temperature mode:
-// Input msg.payload = 50
-// Output msg.payload = { colorTemp: 327, on: true }
+// Percent temperature across your K-range
+{ "temperature": 50 }                  // → colorTemp from 50% of [minK..maxK] → mireds (153–500)
 
-// Color (RGB) mode:
-// Input msg.payload = 100
-// Output msg.payload = { rgb: [255, 0, 0], on: true }
+// Explicit Kelvin
+{ "kelvin": 6500 }                     // → { "colorTemp": 153 }  // with map-to-full ON and maxK=6500
+
+// Color
+{ "Color": "hsv(241,100,100)" }        // → { "rgb": [..,..,..], "on": true }  // no brightness unless option enabled
 ```
 
+> ℹ️ Outputs **never** include a `color` alias or `colorTempKelvin`; use `rgb` and `colorTemp` only.
 ### CLI Discovery Utility
 
 Discover NHC2 controllers via UDP broadcast on your local network:
@@ -195,6 +211,15 @@ Import `examples/usage_example.json` into Node-RED to see a complete demo flow.
 ## Changelog
 
 For the full changelog, see [CHANGELOG.md](CHANGELOG.md).
+
+<details>
+<summary>v1.19.4 </summary>
+
+**Added**
+
+* Hue Mapping node (`nhc2-hue-mapping`) now supports color-objects from Niko.
+
+</details>
 
 <details>
 <summary>v1.18.0</summary>

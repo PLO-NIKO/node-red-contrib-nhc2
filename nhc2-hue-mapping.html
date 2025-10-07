@@ -1,43 +1,108 @@
 <script type="text/javascript">
-// Register the custom node
-RED.nodes.registerType('nhc2-hue-mapping',{ 
-    category: 'NHC2',
-    color: '#a6bbcf',
-    defaults: {
-        name: { value: "" },
-        mode: { value: "brightness" }
-    },
-    inputs: 1,
-    outputs: 1,
-    icon: "font-awesome/fa-arrows-h",
-    label: function() {
-        return this.name || 'NHC2→Hue (' + this.mode + ')';
-    }
+RED.nodes.registerType('nhc2-hue-mapping',{
+  category: 'NHC2',
+  color: '#a6bbcf',
+  defaults: {
+    name: { value: "" },
+    mode: { value: "brightness" }, // brightness | temperature | color
+    statusQuiet: { value: false },
+    acceptColorFrames: { value: false },
+    colorAffectsBrightness: { value: false },
+    autoIncludeCtInWhiteMode: { value: true }, // default TRUE for Hue
+    mapKelvinRangeToHueFull: { value: true },  // default TRUE
+    listenColorMode: { value: true },
+    minKelvin: { value: 2700, validate: function(v){ return !isNaN(+v); } },
+    maxKelvin: { value: 6500, validate: function(v){ return !isNaN(+v); } }
+  },
+  inputs: 1,
+  outputs: 1,
+  icon: "font-awesome/fa-arrows-h",
+  label: function() {
+    return this.name || ('NHC2→Hue (' + this.mode + ')');
+  }
 });
 </script>
 
-<!-- Editor UI -->
 <script type="text/html" data-template-name="nhc2-hue-mapping">
-    <div class="form-row">
-        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-        <input type="text" id="node-input-name" placeholder="Name">
-    </div>
-    <div class="form-row">
-        <label for="node-input-mode"><i class="fa fa-cog"></i> Mode</label>
-        <select id="node-input-mode">
-            <option value="brightness">Brightness</option>
-            <option value="colorTemp">Color Temperature</option>
-            <option value="color">Color (RGB)</option>
-        </select>
-    </div>
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-mode"><i class="fa fa-sliders"></i> Number input maps to</label>
+    <select id="node-input-mode">
+      <option value="brightness">Brightness (0–100)</option>
+      <option value="temperature">Tunable white (0–100 → min/max K)</option>
+      <option value="color">Color hue (0–100 → 0–360°)</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-acceptColorFrames">
+      <i class="fa fa-paint-brush"></i> Accept color-frames as input
+    </label>
+    <input type="checkbox" id="node-input-acceptColorFrames" style="width:auto; margin-left:8px;">
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-colorAffectsBrightness">
+      <i class="fa fa-sun-o"></i> Color input may change brightness
+    </label>
+    <input type="checkbox" id="node-input-colorAffectsBrightness" style="width:auto; margin-left:8px;">
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-autoIncludeCtInWhiteMode">
+      <i class="fa fa-lightbulb-o"></i> Auto-include CT when in white mode
+    </label>
+    <input type="checkbox" id="node-input-autoIncludeCtInWhiteMode" style="width:auto; margin-left:8px;">
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-mapKelvinRangeToHueFull">
+      <i class="fa fa-exchange"></i> Map Kelvin range to full Hue CT span (153–500)
+    </label>
+    <input type="checkbox" id="node-input-mapKelvinRangeToHueFull" style="width:auto; margin-left:8px;" checked>
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-statusQuiet"><i class="fa fa-eye-slash"></i> Quiet status</label>
+    <input type="checkbox" id="node-input-statusQuiet" style="width:auto; margin-left:8px;">
+  </div>
+
+  <div class="form-row">
+    <label><i class="fa fa-thermometer-half"></i> CT range (Kelvin)</label>
+    <span style="display:flex; gap:6px; align-items:center;">
+      <input type="number" id="node-input-minKelvin" style="width:110px"> to
+      <input type="number" id="node-input-maxKelvin" style="width:110px">
+      <span style="margin-left:8px;opacity:0.85">
+        Output uses Hue mireds <b>(153–500)</b>.<br/>
+        When mapping is enabled, <code>minK → 500</code> and <code>maxK → 153</code> linearly.
+      </span>
+    </span>
+  </div>
+
+  <div class="form-tips">
+    <p><b>Accepted inputs (examples):</b></p>
+    <ul>
+      <li>Boolean: <code>true</code>/<code>false</code> (on/off)</li>
+      <li>Number 0–100: mapped according to the dropdown above</li>
+      <li>Object: <code>{brightness:50}</code>, <code>{temperature:4000}</code>, <code>{mode:"white"}</code></li>
+      <li>Color strings: <code>{Color:"hsv(120,100,50)"}</code>, <code>{Color:"rgb(255,0,0)"}</code></li>
+      <li>Tunable white string: <code>{TunableWhite:"cwww(4000, 70)"}</code> — <b>second value is ignored for brightness</b>; latest explicit <code>Brightness</code> is used.</li>
+      <li>When “Accept color-frames” is enabled: <code>{rgb:[255,0,0]}</code>, <code>{h:120,s:100,v:50}</code>, <code>{kelvin:3000}</code>, <code>{mireds:333}</code></li>
+    </ul>
+    <p><b>Output:</b> Hue payload uses <code>brightness</code> (0–100), <code>colorTemp</code> (mireds 153–500), and <code>rgb</code> arrays.</p>
+  </div>
 </script>
 
-<!-- Help text -->
 <script type="text/html" data-help-name="nhc2-hue-mapping">
-    <p>Configure how the NHC2 input is mapped to a HueMagic payload.</p>
-    <ul>
-        <li><b>Brightness</b>: Maps numeric 0–100 to <code>brightness</code> (and <code>on</code> if >0).</li>
-        <li><b>Color Temperature</b>: Maps 0–100 to <code>colorTemp</code> in mireds (153–500).</li>
-        <li><b>Color (RGB)</b>: Traverses the color spectrum by mapping 0–100 to hue and converting to an RGB array.</li>
-    </ul>
+  <p>Maps NHC2-style / Home Assistant-like light commands to a Hue-friendly payload.</p>
+  <ul>
+    <li><b>CT mapping:</b> Kelvin inputs can be linearly mapped across the full Hue mired range (153–500). Toggle with “Map Kelvin range to full Hue CT span”.</li>
+    <li><b>RGB:</b> Emits only <code>rgb</code> (array [r,g,b]).</li>
+    <li><b>Mode switch to Tunable White:</b> the node emits the latest known CT so the Hue device leaves colour mode.</li>
+    <li><b>Brightness stickiness:</b> latest explicit <code>Brightness</code> wins unless a new one is provided.</li>
+  </ul>
 </script>
